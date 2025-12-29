@@ -177,7 +177,7 @@ async function loadAvailableServers() {
       availableServers.forEach((server, index) => {
         const option = document.createElement('option');
         option.value = index;
-        option.textContent = `${server.host}:${server.port}`;
+        option.textContent = server.country;
 
         if (server.host === currentHost && server.port === parseInt(currentPort)) {
           option.selected = true;
@@ -187,7 +187,10 @@ async function loadAvailableServers() {
       });
 
       if (currentHost && currentPort) {
-        selectedServerDisplay.textContent = `${currentHost}:${currentPort}`;
+        const currentServer = availableServers.find(server =>
+          server.host === currentHost && server.port === parseInt(currentPort)
+        );
+        selectedServerDisplay.textContent = currentServer ? currentServer.country : `${currentHost}:${currentPort}`;
         selectedServerInfo.style.display = 'block';
       }
     }
@@ -221,10 +224,10 @@ async function handleServerSelect(event) {
 
     if (result.success) {
       const selectedServerDisplay = document.getElementById('selected-server-display');
-      selectedServerDisplay.textContent = `${server.host}:${server.port}`;
+      selectedServerDisplay.textContent = server.country;
       document.getElementById('selected-server-info').style.display = 'block';
 
-      showMessage(`Selected server: ${server.host}:${server.port}`, 'success');
+      showMessage(`Selected server: ${server.country}`, 'success');
     } else {
       showMessage(`Failed to select server: ${result.error}`, 'error');
     }
