@@ -16,6 +16,7 @@
     "http://localhost/*",
     "https://localhost/*",
     "https://auth.lhamacorp.com/*",
+    "https://proxy-manager.lhamacorp.com/*",
     "http://httpbin.org/*",
     "<all_urls>"
   ],

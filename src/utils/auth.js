@@ -35,10 +35,10 @@ class AuthService {
       authServerUrl: 'https://auth.lhamacorp.com',
       username: '',
       password: '',
-      proxyHost: 'centauri.lhamacorp.com',
-      proxyPort: 32112,
+      proxyHost: 'localhost',
+      proxyPort: 1080,
       autoConnect: false,
-      refreshMargin: 300 // 5 minutes before expiry
+      refreshMargin: 3600
     };
 
     const result = await browser.storage.local.get(Object.keys(defaults));

@@ -52,6 +52,23 @@
       </form>
     </div>
 
+    <!-- Server Selection Section -->
+    <div class="server-section" id="server-section" style="display: none;">
+      <h3>Select Proxy Server</h3>
+      <div class="server-selector">
+        <select id="server-select" class="server-dropdown">
+          <option value="">Loading servers...</option>
+        </select>
+        <button class="btn btn-icon" id="refresh-servers-btn" title="Refresh server list">
+          &#x21bb;
+        </button>
+      </div>
+      <div class="selected-server" id="selected-server-info" style="display: none;">
+        <span class="server-label">Selected:</span>
+        <span class="server-value" id="selected-server-display">-</span>
+      </div>
+    </div>
+
     <!-- Controls Section -->
     <div class="controls-section">
       <button class="btn btn-secondary" id="toggle-proxy-btn">

@@ -3,6 +3,7 @@
  */
 
 let currentStatus = null;
+let availableServers = [];
 
 // Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
@@ -32,6 +33,10 @@ function setupEventListeners() {
   document.getElementById('toggle-proxy-btn').addEventListener('click', handleToggleProxy);
   document.getElementById('test-connection-btn').addEventListener('click', handleTestConnection);
   document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+  // Server selection
+  document.getElementById('server-select').addEventListener('change', handleServerSelect);
+  document.getElementById('refresh-servers-btn').addEventListener('click', loadAvailableServers);
 
   // Action buttons
   document.getElementById('open-options-btn').addEventListener('click', handleOpenOptions);
@@ -123,14 +128,24 @@ function updateStatusDisplay() {
 
   // Show/hide sections based on status
   const loginSection = document.getElementById('login-section');
+  const serverSection = document.getElementById('server-section');
   const logoutBtn = document.getElementById('logout-btn');
 
   if (!currentStatus.isAuthenticated && !currentStatus.hasCredentials) {
     loginSection.style.display = 'block';
+    serverSection.style.display = 'none';
     logoutBtn.style.display = 'none';
   } else {
     loginSection.style.display = 'none';
     logoutBtn.style.display = currentStatus.isAuthenticated ? 'block' : 'none';
+
+    // Show server section and load servers when authenticated
+    if (currentStatus.isAuthenticated) {
+      serverSection.style.display = 'block';
+      loadAvailableServers();
+    } else {
+      serverSection.style.display = 'none';
+    }
   }
 
   // Update toggle button text
@@ -189,6 +204,109 @@ async function handleLogin(event) {
   } catch (error) {
     console.error('Popup: Login error:', error);
     showMessage('Login failed. Please try again.', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+/**
+ * Load available proxy servers
+ */
+async function loadAvailableServers() {
+  const serverSelect = document.getElementById('server-select');
+  const selectedServerInfo = document.getElementById('selected-server-info');
+  const selectedServerDisplay = document.getElementById('selected-server-display');
+
+  try {
+    serverSelect.innerHTML = '<option value="">Loading...</option>';
+    serverSelect.disabled = true;
+
+    const result = await sendMessage({ action: 'getServers' });
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    availableServers = result.servers;
+
+    // Get current settings to see which server is selected
+    const settings = await browser.storage.local.get(['proxyHost', 'proxyPort']);
+    const currentHost = settings.proxyHost || '';
+    const currentPort = settings.proxyPort || '';
+
+    // Populate dropdown
+    serverSelect.innerHTML = '';
+
+    if (availableServers.length === 0) {
+      serverSelect.innerHTML = '<option value="">No servers available</option>';
+      selectedServerInfo.style.display = 'none';
+    } else {
+      availableServers.forEach((server, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${server.host}:${server.port}`;
+
+        // Select the currently configured server
+        if (server.host === currentHost && server.port === parseInt(currentPort)) {
+          option.selected = true;
+        }
+
+        serverSelect.appendChild(option);
+      });
+
+      // Show selected server info
+      if (currentHost && currentPort) {
+        selectedServerDisplay.textContent = `${currentHost}:${currentPort}`;
+        selectedServerInfo.style.display = 'block';
+      }
+    }
+
+    serverSelect.disabled = false;
+
+  } catch (error) {
+    console.error('Popup: Failed to load servers:', error);
+    serverSelect.innerHTML = '<option value="">Failed to load</option>';
+    serverSelect.disabled = false;
+    selectedServerInfo.style.display = 'none';
+  }
+}
+
+/**
+ * Handle server selection
+ */
+async function handleServerSelect(event) {
+  const selectedIndex = event.target.value;
+
+  if (selectedIndex === '' || !availableServers[selectedIndex]) {
+    return;
+  }
+
+  const server = availableServers[selectedIndex];
+
+  showLoading(true);
+
+  try {
+    const result = await sendMessage({
+      action: 'selectServer',
+      host: server.host,
+      port: server.port
+    });
+
+    if (result.success) {
+      // Update display
+      const selectedServerInfo = document.getElementById('selected-server-info');
+      const selectedServerDisplay = document.getElementById('selected-server-display');
+      selectedServerDisplay.textContent = `${server.host}:${server.port}`;
+      selectedServerInfo.style.display = 'block';
+
+      showMessage(`Selected server: ${server.host}:${server.port}`, 'success');
+    } else {
+      showMessage(`Failed to select server: ${result.error}`, 'error');
+    }
+
+  } catch (error) {
+    console.error('Popup: Server selection error:', error);
+    showMessage('Failed to select server', 'error');
   } finally {
     showLoading(false);
   }

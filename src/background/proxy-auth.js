@@ -152,6 +152,35 @@ async function clearProxy() {
 }
 
 /**
+ * Fetch available proxy servers from the proxy manager API
+ */
+async function fetchAvailableServers() {
+  console.log('ProxyAuth: Fetching available servers...');
+
+  const token = await authService.getToken();
+  if (!token) {
+    throw new Error('Authentication required to fetch servers');
+  }
+
+  const response = await fetch('https://proxy-manager.lhamacorp.com/api/servers', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch servers: ${response.status} ${response.statusText}`);
+  }
+
+  const servers = await response.json();
+  console.log('ProxyAuth: Available servers:', servers);
+
+  // Filter to only active servers
+  return servers.filter(server => server.isActive);
+}
+
+/**
  * Handle settings changes
  */
 async function handleSettingsChange(changes, area) {
@@ -260,6 +289,26 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         }
 
         return Promise.resolve({ success: true, enabled: newAutoConnect });
+      } catch (error) {
+        return Promise.resolve({ success: false, error: error.message });
+      }
+
+    case 'getServers':
+      try {
+        const servers = await fetchAvailableServers();
+        return Promise.resolve({ success: true, servers: servers });
+      } catch (error) {
+        return Promise.resolve({ success: false, error: error.message });
+      }
+
+    case 'selectServer':
+      try {
+        await browser.storage.local.set({
+          proxyHost: message.host,
+          proxyPort: message.port
+        });
+        console.log(`ProxyAuth: Selected server ${message.host}:${message.port}`);
+        return Promise.resolve({ success: true });
       } catch (error) {
         return Promise.resolve({ success: false, error: error.message });
       }
