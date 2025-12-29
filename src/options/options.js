@@ -1,31 +1,13 @@
-/**
- * Options page script for Lhamacorp Proxy Client
- */
-
 let currentSettings = null;
 let currentStatus = null;
 
-// Initialize options page when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Options: Initializing...');
-
-  // Set up event listeners
   setupEventListeners();
-
-  // Load current settings
   await loadSettings();
-
-  // Refresh status
   await refreshStatus();
-
-  console.log('Options: Initialization complete');
 });
 
-/**
- * Set up all event listeners
- */
 function setupEventListeners() {
-  // Form elements
   const formElements = [
     'auth-server-url', 'username', 'password', 'refresh-margin',
     'proxy-host', 'proxy-port', 'auto-connect', 'connection-timeout',
@@ -40,23 +22,17 @@ function setupEventListeners() {
     }
   });
 
-  // Action buttons
   document.getElementById('save-btn').addEventListener('click', handleSave);
   document.getElementById('test-auth-btn').addEventListener('click', handleTestAuth);
   document.getElementById('test-proxy-btn').addEventListener('click', handleTestProxy);
   document.getElementById('clear-data-btn').addEventListener('click', handleClearData);
-
-  // Advanced actions
   document.getElementById('export-settings-btn').addEventListener('click', handleExportSettings);
   document.getElementById('import-settings-btn').addEventListener('click', () => {
     document.getElementById('import-file').click();
   });
   document.getElementById('import-file').addEventListener('change', handleImportSettings);
-
-  // Message close button
   document.getElementById('message-close').addEventListener('click', hideMessage);
 
-  // Help and privacy links
   document.getElementById('help-link').addEventListener('click', (e) => {
     e.preventDefault();
     showMessage('Help documentation coming soon!', 'info');
@@ -68,9 +44,6 @@ function setupEventListeners() {
   });
 }
 
-/**
- * Load current settings and populate form
- */
 async function loadSettings() {
   try {
     const defaults = {
@@ -91,22 +64,14 @@ async function loadSettings() {
     const result = await browser.storage.local.get(Object.keys(defaults));
     currentSettings = { ...defaults, ...result };
 
-    // Populate form fields
     populateForm(currentSettings);
-
-    console.log('Options: Settings loaded');
-
   } catch (error) {
     console.error('Options: Failed to load settings:', error);
     showMessage('Failed to load settings', 'error');
   }
 }
 
-/**
- * Populate form with current settings
- */
 function populateForm(settings) {
-  // Text inputs
   const textFields = {
     'auth-server-url': settings.authServerUrl,
     'username': settings.username,
@@ -120,7 +85,6 @@ function populateForm(settings) {
     if (element) element.value = value || '';
   });
 
-  // Number inputs
   const numberFields = {
     'refresh-margin': settings.refreshMargin,
     'proxy-port': settings.proxyPort,
@@ -132,7 +96,6 @@ function populateForm(settings) {
     if (element) element.value = value || '';
   });
 
-  // Checkboxes
   const checkboxFields = {
     'auto-connect': settings.autoConnect,
     'auto-login': settings.autoLogin,
@@ -146,9 +109,6 @@ function populateForm(settings) {
   });
 }
 
-/**
- * Get form values as settings object
- */
 function getFormValues() {
   return {
     authServerUrl: document.getElementById('auth-server-url').value.trim(),
@@ -166,9 +126,6 @@ function getFormValues() {
   };
 }
 
-/**
- * Mark form as unsaved
- */
 function markUnsaved() {
   const saveBtn = document.getElementById('save-btn');
   if (!saveBtn.classList.contains('unsaved')) {
@@ -177,41 +134,31 @@ function markUnsaved() {
   }
 }
 
-/**
- * Mark form as saved
- */
 function markSaved() {
   const saveBtn = document.getElementById('save-btn');
   saveBtn.classList.remove('unsaved');
   saveBtn.textContent = 'Save Settings';
 }
 
-/**
- * Handle save settings
- */
 async function handleSave() {
   showLoading(true);
 
   try {
     const newSettings = getFormValues();
 
-    // Validate settings
     const validation = validateSettings(newSettings);
     if (!validation.valid) {
       showMessage(`Invalid settings: ${validation.error}`, 'error');
       return;
     }
 
-    // Save to storage
     await browser.storage.local.set(newSettings);
     currentSettings = newSettings;
 
     markSaved();
     showMessage('Settings saved successfully!', 'success');
 
-    // Refresh status to reflect changes
     setTimeout(refreshStatus, 500);
-
   } catch (error) {
     console.error('Options: Failed to save settings:', error);
     showMessage('Failed to save settings', 'error');
@@ -220,9 +167,6 @@ async function handleSave() {
   }
 }
 
-/**
- * Validate settings
- */
 function validateSettings(settings) {
   if (!settings.authServerUrl) {
     return { valid: false, error: 'Authentication server URL is required' };
@@ -253,9 +197,6 @@ function validateSettings(settings) {
   return { valid: true };
 }
 
-/**
- * Handle test authentication
- */
 async function handleTestAuth() {
   showLoading(true);
 
@@ -280,7 +221,6 @@ async function handleTestAuth() {
     } else {
       showMessage(`Authentication test failed: ${result.error}`, 'error');
     }
-
   } catch (error) {
     console.error('Options: Test auth error:', error);
     showMessage('Authentication test failed', 'error');
@@ -289,9 +229,6 @@ async function handleTestAuth() {
   }
 }
 
-/**
- * Handle test proxy connection
- */
 async function handleTestProxy() {
   showLoading(true);
 
@@ -303,7 +240,6 @@ async function handleTestProxy() {
     } else {
       showMessage(`Proxy connection test failed: ${result.error}`, 'error');
     }
-
   } catch (error) {
     console.error('Options: Test proxy error:', error);
     showMessage('Proxy connection test failed', 'error');
@@ -312,9 +248,6 @@ async function handleTestProxy() {
   }
 }
 
-/**
- * Handle clear all data
- */
 async function handleClearData() {
   if (!confirm('This will clear all extension data including saved passwords and settings. Are you sure?')) {
     return;
@@ -324,16 +257,11 @@ async function handleClearData() {
 
   try {
     await browser.storage.local.clear();
-
-    // Reset form to defaults
     await loadSettings();
-
-    // Logout from background
     await sendMessage({ action: 'logout' });
 
     showMessage('All data cleared successfully', 'success');
     await refreshStatus();
-
   } catch (error) {
     console.error('Options: Clear data error:', error);
     showMessage('Failed to clear data', 'error');
@@ -342,9 +270,6 @@ async function handleClearData() {
   }
 }
 
-/**
- * Handle export settings
- */
 function handleExportSettings() {
   try {
     const exportData = {
@@ -353,7 +278,6 @@ function handleExportSettings() {
       settings: { ...currentSettings }
     };
 
-    // Remove sensitive data from export
     delete exportData.settings.password;
 
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -365,16 +289,12 @@ function handleExportSettings() {
     link.click();
 
     showMessage('Settings exported successfully', 'success');
-
   } catch (error) {
     console.error('Options: Export error:', error);
     showMessage('Failed to export settings', 'error');
   }
 }
 
-/**
- * Handle import settings
- */
 async function handleImportSettings(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -387,50 +307,37 @@ async function handleImportSettings(event) {
       throw new Error('Invalid settings file format');
     }
 
-    // Merge with current settings (keeping password)
     const newSettings = { ...currentSettings, ...data.settings };
 
-    // Validate
     const validation = validateSettings(newSettings);
     if (!validation.valid) {
       throw new Error(validation.error);
     }
 
-    // Apply settings
     populateForm(newSettings);
     markUnsaved();
 
     showMessage('Settings imported successfully. Click Save to apply.', 'success');
-
   } catch (error) {
     console.error('Options: Import error:', error);
     showMessage(`Failed to import settings: ${error.message}`, 'error');
   } finally {
-    // Clear file input
     event.target.value = '';
   }
 }
 
-/**
- * Refresh status from background script
- */
 async function refreshStatus() {
   try {
     currentStatus = await sendMessage({ action: 'getStatus' });
     updateStatusDisplay();
-
   } catch (error) {
     console.error('Options: Failed to refresh status:', error);
   }
 }
 
-/**
- * Update the status display
- */
 function updateStatusDisplay() {
   if (!currentStatus) return;
 
-  // Authentication status
   const authStatus = document.getElementById('auth-status');
   const authIndicator = document.getElementById('auth-indicator');
   const tokenInfo = document.getElementById('token-info');
@@ -441,8 +348,7 @@ function updateStatusDisplay() {
     authIndicator.className = 'status-indicator connected';
 
     if (currentStatus.tokenExpiry) {
-      const expiryDate = new Date(currentStatus.tokenExpiry);
-      tokenExpiry.textContent = expiryDate.toLocaleString();
+      tokenExpiry.textContent = new Date(currentStatus.tokenExpiry).toLocaleString();
       tokenInfo.style.display = 'block';
     }
   } else if (currentStatus.hasCredentials) {
@@ -455,7 +361,6 @@ function updateStatusDisplay() {
     tokenInfo.style.display = 'none';
   }
 
-  // Proxy status
   const proxyStatus = document.getElementById('proxy-status');
   const proxyIndicator = document.getElementById('proxy-indicator');
   const proxyDetails = document.getElementById('proxy-details');
@@ -471,9 +376,6 @@ function updateStatusDisplay() {
   }
 }
 
-/**
- * Send message to background script
- */
 async function sendMessage(message) {
   return new Promise((resolve, reject) => {
     browser.runtime.sendMessage(message, (response) => {
@@ -486,62 +388,34 @@ async function sendMessage(message) {
   });
 }
 
-/**
- * Show/hide loading overlay
- */
 function showLoading(show) {
-  const overlay = document.getElementById('loading-overlay');
-  overlay.style.display = show ? 'flex' : 'none';
-
-  // Disable all buttons during loading
-  const buttons = document.querySelectorAll('.btn');
-  buttons.forEach(button => {
-    button.disabled = show;
-  });
+  document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+  document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
 }
 
-/**
- * Show message to user
- */
 function showMessage(text, type = 'info') {
   const container = document.getElementById('message-container');
-  const messageText = document.getElementById('message-text');
-
-  messageText.textContent = text;
+  document.getElementById('message-text').textContent = text;
   container.className = `message ${type}`;
   container.style.display = 'block';
 
-  // Auto-hide success messages
   if (type === 'success') {
-    setTimeout(() => {
-      hideMessage();
-    }, 5000);
+    setTimeout(hideMessage, 5000);
   }
 }
 
-/**
- * Hide message
- */
 function hideMessage() {
-  const container = document.getElementById('message-container');
-  container.style.display = 'none';
+  document.getElementById('message-container').style.display = 'none';
 }
 
-/**
- * Auto-refresh status every 30 seconds
- */
 setInterval(() => {
   if (document.visibilityState === 'visible') {
     refreshStatus();
   }
 }, 30000);
 
-/**
- * Warn user about unsaved changes
- */
 window.addEventListener('beforeunload', (e) => {
-  const saveBtn = document.getElementById('save-btn');
-  if (saveBtn.classList.contains('unsaved')) {
+  if (document.getElementById('save-btn').classList.contains('unsaved')) {
     e.preventDefault();
     e.returnValue = '';
   }

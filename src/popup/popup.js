@@ -1,80 +1,42 @@
-/**
- * Popup script for Lhamacorp Proxy Client
- */
-
 let currentStatus = null;
 let availableServers = [];
 
-// Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Popup: Initializing...');
-
-  // Set up event listeners
   setupEventListeners();
-
-  // Load initial status
   await refreshStatus();
-
-  // Load saved credentials for quick login
   await loadSavedCredentials();
-
-  console.log('Popup: Initialization complete');
 });
 
-/**
- * Set up all event listeners
- */
 function setupEventListeners() {
-  // Login form
-  const loginForm = document.getElementById('login-form');
-  loginForm.addEventListener('submit', handleLogin);
-
-  // Control buttons
+  document.getElementById('login-form').addEventListener('submit', handleLogin);
   document.getElementById('toggle-proxy-btn').addEventListener('click', handleToggleProxy);
   document.getElementById('test-connection-btn').addEventListener('click', handleTestConnection);
   document.getElementById('logout-btn').addEventListener('click', handleLogout);
-
-  // Server selection
   document.getElementById('server-select').addEventListener('change', handleServerSelect);
   document.getElementById('refresh-servers-btn').addEventListener('click', loadAvailableServers);
-
-  // Action buttons
   document.getElementById('open-options-btn').addEventListener('click', handleOpenOptions);
   document.getElementById('refresh-status-btn').addEventListener('click', refreshStatus);
-
-  // Message close button
   document.getElementById('message-close').addEventListener('click', hideMessage);
-
-  // Logo click for quick refresh
   document.getElementById('logo').addEventListener('click', refreshStatus);
 }
 
-/**
- * Load saved credentials for quick login
- */
 async function loadSavedCredentials() {
   try {
-    const result = await browser.storage.local.get(['username', 'authServerUrl']);
-
+    const result = await browser.storage.local.get(['username']);
     if (result.username) {
       document.getElementById('username').value = result.username;
     }
-
   } catch (error) {
     console.error('Popup: Failed to load saved credentials:', error);
   }
 }
 
-/**
- * Refresh status from background script
- */
 async function refreshStatus() {
   showLoading(true);
 
   try {
     currentStatus = await sendMessage({ action: 'getStatus' });
     updateStatusDisplay();
-
   } catch (error) {
     console.error('Popup: Failed to refresh status:', error);
     showMessage('Failed to get status', 'error');
@@ -83,13 +45,9 @@ async function refreshStatus() {
   }
 }
 
-/**
- * Update the status display
- */
 function updateStatusDisplay() {
   if (!currentStatus) return;
 
-  // Authentication status
   const authStatus = document.getElementById('auth-status');
   const authIndicator = document.getElementById('auth-indicator');
   const tokenExpiryItem = document.getElementById('token-expiry-item');
@@ -100,8 +58,7 @@ function updateStatusDisplay() {
     authIndicator.className = 'status-indicator connected';
 
     if (currentStatus.tokenExpiry) {
-      const expiryDate = new Date(currentStatus.tokenExpiry);
-      tokenExpiry.textContent = formatRelativeTime(expiryDate);
+      tokenExpiry.textContent = formatRelativeTime(new Date(currentStatus.tokenExpiry));
       tokenExpiryItem.style.display = 'block';
     }
   } else if (currentStatus.hasCredentials) {
@@ -114,7 +71,6 @@ function updateStatusDisplay() {
     tokenExpiryItem.style.display = 'none';
   }
 
-  // Proxy status
   const proxyStatus = document.getElementById('proxy-status');
   const proxyIndicator = document.getElementById('proxy-indicator');
 
@@ -126,7 +82,6 @@ function updateStatusDisplay() {
     proxyIndicator.className = 'status-indicator disconnected';
   }
 
-  // Show/hide sections based on status
   const loginSection = document.getElementById('login-section');
   const serverSection = document.getElementById('server-section');
   const logoutBtn = document.getElementById('logout-btn');
@@ -139,7 +94,6 @@ function updateStatusDisplay() {
     loginSection.style.display = 'none';
     logoutBtn.style.display = currentStatus.isAuthenticated ? 'block' : 'none';
 
-    // Show server section and load servers when authenticated
     if (currentStatus.isAuthenticated) {
       serverSection.style.display = 'block';
       loadAvailableServers();
@@ -148,14 +102,10 @@ function updateStatusDisplay() {
     }
   }
 
-  // Update toggle button text
-  const toggleText = document.getElementById('toggle-proxy-text');
-  toggleText.textContent = currentStatus.proxyConfigured ? 'Disable Proxy' : 'Enable Proxy';
+  document.getElementById('toggle-proxy-text').textContent =
+    currentStatus.proxyConfigured ? 'Disable Proxy' : 'Enable Proxy';
 }
 
-/**
- * Handle login form submission
- */
 async function handleLogin(event) {
   event.preventDefault();
 
@@ -170,37 +120,25 @@ async function handleLogin(event) {
   showLoading(true);
 
   try {
-    // Get auth server URL from settings
     const settings = await browser.storage.local.get(['authServerUrl']);
-    const authServerUrl = settings.authServerUrl || 'https://auth.lhamacorp.com/api/authenticate';
+    const authServerUrl = settings.authServerUrl || 'https://auth.lhamacorp.com';
 
-    // Save credentials
-    await browser.storage.local.set({
-      username: username,
-      password: password
-    });
+    await browser.storage.local.set({ username, password });
 
-    // Attempt authentication
     const result = await sendMessage({
       action: 'authenticate',
-      username: username,
-      password: password,
-      authServerUrl: authServerUrl
+      username,
+      password,
+      authServerUrl
     });
 
     if (result.success) {
       showMessage('Authentication successful!', 'success');
-
-      // Clear password field
       document.getElementById('password').value = '';
-
-      // Refresh status
       await refreshStatus();
-
     } else {
       showMessage(`Authentication failed: ${result.error}`, 'error');
     }
-
   } catch (error) {
     console.error('Popup: Login error:', error);
     showMessage('Login failed. Please try again.', 'error');
@@ -209,9 +147,6 @@ async function handleLogin(event) {
   }
 }
 
-/**
- * Load available proxy servers
- */
 async function loadAvailableServers() {
   const serverSelect = document.getElementById('server-select');
   const selectedServerInfo = document.getElementById('selected-server-info');
@@ -229,12 +164,10 @@ async function loadAvailableServers() {
 
     availableServers = result.servers;
 
-    // Get current settings to see which server is selected
     const settings = await browser.storage.local.get(['proxyHost', 'proxyPort']);
     const currentHost = settings.proxyHost || '';
     const currentPort = settings.proxyPort || '';
 
-    // Populate dropdown
     serverSelect.innerHTML = '';
 
     if (availableServers.length === 0) {
@@ -246,7 +179,6 @@ async function loadAvailableServers() {
         option.value = index;
         option.textContent = `${server.host}:${server.port}`;
 
-        // Select the currently configured server
         if (server.host === currentHost && server.port === parseInt(currentPort)) {
           option.selected = true;
         }
@@ -254,7 +186,6 @@ async function loadAvailableServers() {
         serverSelect.appendChild(option);
       });
 
-      // Show selected server info
       if (currentHost && currentPort) {
         selectedServerDisplay.textContent = `${currentHost}:${currentPort}`;
         selectedServerInfo.style.display = 'block';
@@ -262,7 +193,6 @@ async function loadAvailableServers() {
     }
 
     serverSelect.disabled = false;
-
   } catch (error) {
     console.error('Popup: Failed to load servers:', error);
     serverSelect.innerHTML = '<option value="">Failed to load</option>';
@@ -271,9 +201,6 @@ async function loadAvailableServers() {
   }
 }
 
-/**
- * Handle server selection
- */
 async function handleServerSelect(event) {
   const selectedIndex = event.target.value;
 
@@ -293,17 +220,14 @@ async function handleServerSelect(event) {
     });
 
     if (result.success) {
-      // Update display
-      const selectedServerInfo = document.getElementById('selected-server-info');
       const selectedServerDisplay = document.getElementById('selected-server-display');
       selectedServerDisplay.textContent = `${server.host}:${server.port}`;
-      selectedServerInfo.style.display = 'block';
+      document.getElementById('selected-server-info').style.display = 'block';
 
       showMessage(`Selected server: ${server.host}:${server.port}`, 'success');
     } else {
       showMessage(`Failed to select server: ${result.error}`, 'error');
     }
-
   } catch (error) {
     console.error('Popup: Server selection error:', error);
     showMessage('Failed to select server', 'error');
@@ -312,9 +236,6 @@ async function handleServerSelect(event) {
   }
 }
 
-/**
- * Handle proxy toggle
- */
 async function handleToggleProxy() {
   showLoading(true);
 
@@ -322,13 +243,11 @@ async function handleToggleProxy() {
     const result = await sendMessage({ action: 'toggleProxy' });
 
     if (result.success) {
-      const status = result.enabled ? 'enabled' : 'disabled';
-      showMessage(`Proxy ${status}`, 'success');
+      showMessage(`Proxy ${result.enabled ? 'enabled' : 'disabled'}`, 'success');
       await refreshStatus();
     } else {
       showMessage(`Failed to toggle proxy: ${result.error}`, 'error');
     }
-
   } catch (error) {
     console.error('Popup: Toggle proxy error:', error);
     showMessage('Failed to toggle proxy', 'error');
@@ -337,9 +256,6 @@ async function handleToggleProxy() {
   }
 }
 
-/**
- * Handle connection test
- */
 async function handleTestConnection() {
   showLoading(true);
 
@@ -351,7 +267,6 @@ async function handleTestConnection() {
     } else {
       showMessage(`Connection test failed: ${result.error}`, 'error');
     }
-
   } catch (error) {
     console.error('Popup: Test connection error:', error);
     showMessage('Connection test failed', 'error');
@@ -360,9 +275,6 @@ async function handleTestConnection() {
   }
 }
 
-/**
- * Handle logout
- */
 async function handleLogout() {
   if (!confirm('Are you sure you want to logout?')) {
     return;
@@ -379,7 +291,6 @@ async function handleLogout() {
     } else {
       showMessage(`Logout failed: ${result.error}`, 'error');
     }
-
   } catch (error) {
     console.error('Popup: Logout error:', error);
     showMessage('Logout failed', 'error');
@@ -388,17 +299,11 @@ async function handleLogout() {
   }
 }
 
-/**
- * Handle opening options page
- */
 function handleOpenOptions() {
   browser.runtime.openOptionsPage();
   window.close();
 }
 
-/**
- * Send message to background script
- */
 async function sendMessage(message) {
   return new Promise((resolve, reject) => {
     browser.runtime.sendMessage(message, (response) => {
@@ -411,76 +316,41 @@ async function sendMessage(message) {
   });
 }
 
-/**
- * Show/hide loading overlay
- */
 function showLoading(show) {
-  const overlay = document.getElementById('loading-overlay');
-  overlay.style.display = show ? 'flex' : 'none';
-
-  // Disable all buttons during loading
-  const buttons = document.querySelectorAll('.btn');
-  buttons.forEach(button => {
-    button.disabled = show;
-  });
+  document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+  document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
 }
 
-/**
- * Show message to user
- */
 function showMessage(text, type = 'info') {
   const container = document.getElementById('message-container');
-  const messageText = document.getElementById('message-text');
-
-  messageText.textContent = text;
+  document.getElementById('message-text').textContent = text;
   container.className = `message ${type}`;
   container.style.display = 'flex';
 
-  // Auto-hide success messages
   if (type === 'success') {
-    setTimeout(() => {
-      hideMessage();
-    }, 3000);
+    setTimeout(hideMessage, 3000);
   }
 }
 
-/**
- * Hide message
- */
 function hideMessage() {
-  const container = document.getElementById('message-container');
-  container.style.display = 'none';
+  document.getElementById('message-container').style.display = 'none';
 }
 
-/**
- * Format relative time for token expiry
- */
 function formatRelativeTime(date) {
-  const now = new Date();
-  const diff = date - now;
+  const diff = date - new Date();
 
-  if (diff < 0) {
-    return 'Expired';
-  }
+  if (diff < 0) return 'Expired';
 
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (days > 0) {
-    return `${days} day${days !== 1 ? 's' : ''}`;
-  } else if (hours > 0) {
-    return `${hours} hour${hours !== 1 ? 's' : ''}`;
-  } else if (minutes > 0) {
-    return `${minutes} min${minutes !== 1 ? 's' : ''}`;
-  } else {
-    return 'Soon';
-  }
+  if (days > 0) return `${days} day${days !== 1 ? 's' : ''}`;
+  if (hours > 0) return `${hours} hour${hours !== 1 ? 's' : ''}`;
+  if (minutes > 0) return `${minutes} min${minutes !== 1 ? 's' : ''}`;
+  return 'Soon';
 }
 
-/**
- * Auto-refresh status every 30 seconds
- */
 setInterval(() => {
   if (document.visibilityState === 'visible') {
     refreshStatus();
