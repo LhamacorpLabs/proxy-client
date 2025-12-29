@@ -37,3 +37,4 @@ out/
 .vscode/
 .idea/**
 *.zip
+.DS_Store

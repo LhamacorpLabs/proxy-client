@@ -4,6 +4,16 @@
   "version": "1.0.0",
   "description": "Automatic JWT authentication for Lhamacorp SOCKS5 proxy server",
 
+  "browser_specific_settings": {
+    "gecko": {
+      "strict_min_version": "91.1.0",
+      "data_collection_permissions": {
+        "required": ["authenticationInfo"],
+        "optional": ["technicalAndInteraction"]
+      }
+    }
+  },
+
   "permissions": [
     "webRequest",
     "webRequestBlocking",
