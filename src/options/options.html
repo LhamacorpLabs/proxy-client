@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lhamacorp Proxy Client - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <img src="../../icons/icon-48.png" alt="Lhamacorp Proxy" class="logo">
+      <div class="header-content">
+        <h1>Lhamacorp Proxy Client</h1>
+        <p>Configure your SOCKS5 proxy authentication settings</p>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Authentication Settings -->
+      <section class="settings-section">
+        <h2>Authentication Settings</h2>
+        <div class="setting-group">
+          <label for="auth-server-url">Authentication Server URL:</label>
+          <input type="url" id="auth-server-url" placeholder="http://localhost:8080/auth">
+          <small>The URL of your authentication server endpoint</small>
+        </div>
+
+        <div class="setting-group">
+          <label for="username">Username:</label>
+          <input type="text" id="username" placeholder="Enter your username">
+          <small>Your authentication username</small>
+        </div>
+
+        <div class="setting-group">
+          <label for="password">Password:</label>
+          <input type="password" id="password" placeholder="Enter your password">
+          <small>Your authentication password (stored securely)</small>
+        </div>
+
+        <div class="setting-group">
+          <label for="refresh-margin">Token Refresh Margin (seconds):</label>
+          <input type="number" id="refresh-margin" min="60" max="3600" value="300">
+          <small>How early to refresh tokens before expiry (default: 300 seconds / 5 minutes)</small>
+        </div>
+      </section>
+
+      <!-- Proxy Settings -->
+      <section class="settings-section">
+        <h2>Proxy Settings</h2>
+        <div class="setting-group">
+          <label for="proxy-host">SOCKS5 Proxy Host:</label>
+          <input type="text" id="proxy-host" placeholder="localhost" value="localhost">
+          <small>The hostname or IP address of your SOCKS5 proxy server</small>
+        </div>
+
+        <div class="setting-group">
+          <label for="proxy-port">SOCKS5 Proxy Port:</label>
+          <input type="number" id="proxy-port" min="1" max="65535" value="1080">
+          <small>The port number of your SOCKS5 proxy server</small>
+        </div>
+
+        <div class="setting-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="auto-connect">
+            <span class="checkbox-custom"></span>
+            Automatically configure Firefox proxy
+          </label>
+          <small>When enabled, the extension will automatically configure Firefox to use your proxy</small>
+        </div>
+      </section>
+
+      <!-- Connection Settings -->
+      <section class="settings-section">
+        <h2>Connection Settings</h2>
+        <div class="setting-group">
+          <label for="connection-timeout">Connection Timeout (seconds):</label>
+          <input type="number" id="connection-timeout" min="5" max="120" value="30">
+          <small>How long to wait when connecting to the authentication server</small>
+        </div>
+
+        <div class="setting-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="auto-login">
+            <span class="checkbox-custom"></span>
+            Automatically login on startup
+          </label>
+          <small>Attempt to authenticate automatically when browser starts</small>
+        </div>
+
+        <div class="setting-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="show-notifications">
+            <span class="checkbox-custom"></span>
+            Show notifications
+          </label>
+          <small>Display notifications for authentication events and errors</small>
+        </div>
+      </section>
+
+      <!-- Status Section -->
+      <section class="settings-section">
+        <h2>Connection Status</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <div class="status-header">
+              <span class="status-label">Authentication</span>
+              <div class="status-indicator" id="auth-indicator"></div>
+            </div>
+            <div class="status-details">
+              <span id="auth-status">Checking...</span>
+              <div id="token-info" style="display: none;">
+                <small>Token expires: <span id="token-expiry">-</span></small>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-item">
+            <div class="status-header">
+              <span class="status-label">Proxy Configuration</span>
+              <div class="status-indicator" id="proxy-indicator"></div>
+            </div>
+            <div class="status-details">
+              <span id="proxy-status">Checking...</span>
+              <small id="proxy-details">-</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Actions Section -->
+      <section class="settings-section">
+        <h2>Actions</h2>
+        <div class="action-buttons">
+          <button class="btn btn-primary" id="save-btn">Save Settings</button>
+          <button class="btn btn-secondary" id="test-auth-btn">Test Authentication</button>
+          <button class="btn btn-secondary" id="test-proxy-btn">Test Proxy</button>
+          <button class="btn btn-danger" id="clear-data-btn">Clear All Data</button>
+        </div>
+      </section>
+
+      <!-- Advanced Section -->
+      <section class="settings-section">
+        <details>
+          <summary>Advanced Settings</summary>
+          <div class="advanced-content">
+            <div class="setting-group">
+              <label for="log-level">Log Level:</label>
+              <select id="log-level">
+                <option value="error">Error</option>
+                <option value="warn">Warning</option>
+                <option value="info" selected>Info</option>
+                <option value="debug">Debug</option>
+              </select>
+              <small>Set the verbosity of logging (requires browser console)</small>
+            </div>
+
+            <div class="setting-group checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="debug-mode">
+                <span class="checkbox-custom"></span>
+                Debug Mode
+              </label>
+              <small>Enable additional debugging features and logging</small>
+            </div>
+
+            <div class="setting-group">
+              <button class="btn btn-link" id="export-settings-btn">Export Settings</button>
+              <button class="btn btn-link" id="import-settings-btn">Import Settings</button>
+              <input type="file" id="import-file" accept=".json" style="display: none;">
+            </div>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+      <div class="loading-spinner"></div>
+      <span class="loading-text">Working...</span>
+    </div>
+
+    <!-- Messages -->
+    <div class="message" id="message-container" style="display: none;">
+      <div class="message-content">
+        <span id="message-text"></span>
+        <button class="message-close" id="message-close">×</button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Lhamacorp Proxy Client v1.0.0</p>
+      <p>
+        <a href="#" id="help-link">Help & Documentation</a> |
+        <a href="#" id="privacy-link">Privacy Policy</a>
+      </p>
+    </footer>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
