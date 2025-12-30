@@ -47,58 +47,7 @@
         </div>
       </section>
 
-      <!-- Proxy Settings -->
-      <section class="settings-section">
-        <h2>Proxy Settings</h2>
-        <div class="setting-group">
-          <label for="proxy-host">SOCKS5 Proxy Host:</label>
-          <input type="text" id="proxy-host" placeholder="localhost" value="localhost">
-          <small>The hostname or IP address of your SOCKS5 proxy server</small>
-        </div>
 
-        <div class="setting-group">
-          <label for="proxy-port">SOCKS5 Proxy Port:</label>
-          <input type="number" id="proxy-port" min="1" max="65535" value="1080">
-          <small>The port number of your SOCKS5 proxy server</small>
-        </div>
-
-        <div class="setting-group checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="auto-connect">
-            <span class="checkbox-custom"></span>
-            Automatically configure Firefox proxy
-          </label>
-          <small>When enabled, the extension will automatically configure Firefox to use your proxy</small>
-        </div>
-      </section>
-
-      <!-- Connection Settings -->
-      <section class="settings-section">
-        <h2>Connection Settings</h2>
-        <div class="setting-group">
-          <label for="connection-timeout">Connection Timeout (seconds):</label>
-          <input type="number" id="connection-timeout" min="5" max="120" value="30">
-          <small>How long to wait when connecting to the authentication server</small>
-        </div>
-
-        <div class="setting-group checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="auto-login">
-            <span class="checkbox-custom"></span>
-            Automatically login on startup
-          </label>
-          <small>Attempt to authenticate automatically when browser starts</small>
-        </div>
-
-        <div class="setting-group checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="show-notifications">
-            <span class="checkbox-custom"></span>
-            Show notifications
-          </label>
-          <small>Display notifications for authentication events and errors</small>
-        </div>
-      </section>
 
       <!-- Status Section -->
       <section class="settings-section">
@@ -135,45 +84,12 @@
         <h2>Actions</h2>
         <div class="action-buttons">
           <button class="btn btn-primary" id="save-btn">Save Settings</button>
-          <button class="btn btn-secondary" id="test-auth-btn">Test Authentication</button>
-          <button class="btn btn-secondary" id="test-proxy-btn">Test Proxy</button>
+          <button class="btn btn-secondary" id="test-auth-btn">Authenticate</button>
+          <button class="btn btn-secondary" id="test-connection-btn">Test Connection</button>
           <button class="btn btn-danger" id="clear-data-btn">Clear All Data</button>
         </div>
       </section>
 
-      <!-- Advanced Section -->
-      <section class="settings-section">
-        <details>
-          <summary>Advanced Settings</summary>
-          <div class="advanced-content">
-            <div class="setting-group">
-              <label for="log-level">Log Level:</label>
-              <select id="log-level">
-                <option value="error">Error</option>
-                <option value="warn">Warning</option>
-                <option value="info" selected>Info</option>
-                <option value="debug">Debug</option>
-              </select>
-              <small>Set the verbosity of logging (requires browser console)</small>
-            </div>
-
-            <div class="setting-group checkbox-group">
-              <label class="checkbox-label">
-                <input type="checkbox" id="debug-mode">
-                <span class="checkbox-custom"></span>
-                Debug Mode
-              </label>
-              <small>Enable additional debugging features and logging</small>
-            </div>
-
-            <div class="setting-group">
-              <button class="btn btn-link" id="export-settings-btn">Export Settings</button>
-              <button class="btn btn-link" id="import-settings-btn">Import Settings</button>
-              <input type="file" id="import-file" accept=".json" style="display: none;">
-            </div>
-          </div>
-        </details>
-      </section>
     </div>
 
     <!-- Loading Overlay -->

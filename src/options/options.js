@@ -9,9 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function setupEventListeners() {
   const formElements = [
-    'auth-server-url', 'username', 'password', 'refresh-margin',
-    'proxy-host', 'proxy-port', 'auto-connect', 'connection-timeout',
-    'auto-login', 'show-notifications', 'log-level', 'debug-mode'
+    'auth-server-url', 'username', 'password', 'refresh-margin'
   ];
 
   formElements.forEach(id => {
@@ -24,13 +22,8 @@ function setupEventListeners() {
 
   document.getElementById('save-btn').addEventListener('click', handleSave);
   document.getElementById('test-auth-btn').addEventListener('click', handleTestAuth);
-  document.getElementById('test-proxy-btn').addEventListener('click', handleTestProxy);
+  document.getElementById('test-connection-btn').addEventListener('click', handleTestConnection);
   document.getElementById('clear-data-btn').addEventListener('click', handleClearData);
-  document.getElementById('export-settings-btn').addEventListener('click', handleExportSettings);
-  document.getElementById('import-settings-btn').addEventListener('click', () => {
-    document.getElementById('import-file').click();
-  });
-  document.getElementById('import-file').addEventListener('change', handleImportSettings);
   document.getElementById('message-close').addEventListener('click', hideMessage);
 
   document.getElementById('help-link').addEventListener('click', (e) => {
@@ -50,15 +43,7 @@ async function loadSettings() {
       authServerUrl: 'https://auth.lhamacorp.com',
       username: '',
       password: '',
-      refreshMargin: 3600,
-      proxyHost: 'localhost',
-      proxyPort: 1080,
-      autoConnect: false,
-      connectionTimeout: 30,
-      autoLogin: false,
-      showNotifications: true,
-      logLevel: 'info',
-      debugMode: false
+      refreshMargin: 3600
     };
 
     const result = await browser.storage.local.get(Object.keys(defaults));
@@ -75,9 +60,7 @@ function populateForm(settings) {
   const textFields = {
     'auth-server-url': settings.authServerUrl,
     'username': settings.username,
-    'password': settings.password,
-    'proxy-host': settings.proxyHost,
-    'log-level': settings.logLevel
+    'password': settings.password
   };
 
   Object.entries(textFields).forEach(([id, value]) => {
@@ -86,26 +69,12 @@ function populateForm(settings) {
   });
 
   const numberFields = {
-    'refresh-margin': settings.refreshMargin,
-    'proxy-port': settings.proxyPort,
-    'connection-timeout': settings.connectionTimeout
+    'refresh-margin': settings.refreshMargin
   };
 
   Object.entries(numberFields).forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) element.value = value || '';
-  });
-
-  const checkboxFields = {
-    'auto-connect': settings.autoConnect,
-    'auto-login': settings.autoLogin,
-    'show-notifications': settings.showNotifications,
-    'debug-mode': settings.debugMode
-  };
-
-  Object.entries(checkboxFields).forEach(([id, value]) => {
-    const element = document.getElementById(id);
-    if (element) element.checked = Boolean(value);
   });
 }
 
@@ -114,15 +83,7 @@ function getFormValues() {
     authServerUrl: document.getElementById('auth-server-url').value.trim(),
     username: document.getElementById('username').value.trim(),
     password: document.getElementById('password').value,
-    refreshMargin: parseInt(document.getElementById('refresh-margin').value) || 300,
-    proxyHost: document.getElementById('proxy-host').value.trim(),
-    proxyPort: parseInt(document.getElementById('proxy-port').value) || 1080,
-    autoConnect: document.getElementById('auto-connect').checked,
-    connectionTimeout: parseInt(document.getElementById('connection-timeout').value) || 30,
-    autoLogin: document.getElementById('auto-login').checked,
-    showNotifications: document.getElementById('show-notifications').checked,
-    logLevel: document.getElementById('log-level').value,
-    debugMode: document.getElementById('debug-mode').checked
+    refreshMargin: parseInt(document.getElementById('refresh-margin').value) || 300
   };
 }
 
@@ -178,20 +139,8 @@ function validateSettings(settings) {
     return { valid: false, error: 'Authentication server URL is not valid' };
   }
 
-  if (!settings.proxyHost) {
-    return { valid: false, error: 'Proxy host is required' };
-  }
-
-  if (settings.proxyPort < 1 || settings.proxyPort > 65535) {
-    return { valid: false, error: 'Proxy port must be between 1 and 65535' };
-  }
-
   if (settings.refreshMargin < 60 || settings.refreshMargin > 3600) {
     return { valid: false, error: 'Refresh margin must be between 60 and 3600 seconds' };
-  }
-
-  if (settings.connectionTimeout < 5 || settings.connectionTimeout > 120) {
-    return { valid: false, error: 'Connection timeout must be between 5 and 120 seconds' };
   }
 
   return { valid: true };
@@ -216,10 +165,10 @@ async function handleTestAuth() {
     });
 
     if (result.success) {
-      showMessage('Authentication test successful!', 'success');
+      showMessage('Authenticated!', 'success');
       await refreshStatus();
     } else {
-      showMessage(`Authentication test failed: ${result.error}`, 'error');
+      showMessage(`Failed to authenticate: ${result.error}`, 'error');
     }
   } catch (error) {
     console.error('Options: Test auth error:', error);
@@ -229,20 +178,20 @@ async function handleTestAuth() {
   }
 }
 
-async function handleTestProxy() {
+async function handleTestConnection() {
   showLoading(true);
 
   try {
     const result = await sendMessage({ action: 'testConnection' });
 
     if (result.success) {
-      showMessage('Proxy connection test successful!', 'success');
+      showMessage('Connection test successful!', 'success');
     } else {
-      showMessage(`Proxy connection test failed: ${result.error}`, 'error');
+      showMessage(`Connection test failed: ${result.error}`, 'error');
     }
   } catch (error) {
-    console.error('Options: Test proxy error:', error);
-    showMessage('Proxy connection test failed', 'error');
+    console.error('Options: Test connection error:', error);
+    showMessage('Connection test failed', 'error');
   } finally {
     showLoading(false);
   }
@@ -270,61 +219,6 @@ async function handleClearData() {
   }
 }
 
-function handleExportSettings() {
-  try {
-    const exportData = {
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      settings: { ...currentSettings }
-    };
-
-    delete exportData.settings.password;
-
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `lhamacorp-proxy-settings-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-
-    showMessage('Settings exported successfully', 'success');
-  } catch (error) {
-    console.error('Options: Export error:', error);
-    showMessage('Failed to export settings', 'error');
-  }
-}
-
-async function handleImportSettings(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-
-    if (!data.settings) {
-      throw new Error('Invalid settings file format');
-    }
-
-    const newSettings = { ...currentSettings, ...data.settings };
-
-    const validation = validateSettings(newSettings);
-    if (!validation.valid) {
-      throw new Error(validation.error);
-    }
-
-    populateForm(newSettings);
-    markUnsaved();
-
-    showMessage('Settings imported successfully. Click Save to apply.', 'success');
-  } catch (error) {
-    console.error('Options: Import error:', error);
-    showMessage(`Failed to import settings: ${error.message}`, 'error');
-  } finally {
-    event.target.value = '';
-  }
-}
 
 async function refreshStatus() {
   try {
@@ -368,7 +262,7 @@ function updateStatusDisplay() {
   if (currentStatus.proxyConfigured) {
     proxyStatus.textContent = 'Enabled';
     proxyIndicator.className = 'status-indicator connected';
-    proxyDetails.textContent = `Using ${currentSettings?.proxyHost || 'localhost'}:${currentSettings?.proxyPort || 1080}`;
+    proxyDetails.textContent = 'Firefox proxy configured';
   } else {
     proxyStatus.textContent = 'Disabled';
     proxyIndicator.className = 'status-indicator disconnected';

@@ -175,23 +175,11 @@ body {
 
 .selected-server {
   margin-top: 12px;
-  padding: 8px 12px;
-  background: #e8f5e9;
-  border-radius: 4px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.server-label {
-  font-size: 13px;
-  color: #666;
-}
-
-.server-value {
-  font-weight: 600;
-  color: #27ae60;
-}
 
 .form-group {
   margin-bottom: 12px;
@@ -275,6 +263,15 @@ body {
 
 .btn-secondary:hover:not(:disabled) {
   background: #7f8c8d;
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c0392b;
 }
 
 .btn-link {
