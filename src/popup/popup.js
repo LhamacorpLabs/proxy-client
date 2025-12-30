@@ -1,6 +1,21 @@
 let currentStatus = null;
 let availableServers = [];
 
+// Country name to flag emoji mapping for dropdown display
+function getCountryFlag(countryName) {
+  const flagMap = {
+    // Common countries
+    'UNITED_STATES': '🇺🇸',
+    'CANADA': '🇨🇦',
+    'GERMANY': '🇩🇪',
+    'FRANCE': '🇫🇷',
+    'NETHERLANDS': '🇳🇱',
+    'BRAZIL': '🇧🇷',
+  };
+
+  return flagMap[countryName] || '🌐';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   await refreshStatus();
@@ -205,7 +220,7 @@ async function validateAndSyncProxyState() {
       const serverSelect = document.getElementById('server-select');
       if (serverSelect && serverSelect.value !== '') {
         serverSelect.value = '';
-        console.log('Popup: Cleared dropdown selection to match proxy state');
+        console.log('Popup: Cleared server dropdown selection to match proxy state');
       }
     } else if (!hasStoredServer && proxyActuallyConfigured) {
       // Proxy is configured but no stored settings - might be external config
@@ -336,7 +351,11 @@ async function loadAvailableServers() {
       availableServers.forEach((server, index) => {
         const option = document.createElement('option');
         option.value = index;
-        option.textContent = server.country || `Server ${index + 1}`;
+
+        // Add flag emoji to country name
+        const countryName = server.country || `Server ${index + 1}`;
+        const flagEmoji = getCountryFlag(countryName);
+        option.textContent = `${flagEmoji} ${countryName}`;
 
         // Only mark as selected if proxy is actually configured AND storage matches
         if (currentStatus && currentStatus.proxyConfigured &&
@@ -450,7 +469,8 @@ async function handleServerSelect(event) {
 
     // Only show success if everything worked
     if (proxyEnabled) {
-      showMessage(`Selected server: ${server.country || server.host}`, 'success');
+      const flagEmoji = getCountryFlag(server.country);
+      showMessage(`Selected server: ${flagEmoji} ${server.country || server.host}`, 'success');
     }
   } catch (error) {
     console.error('Popup: Server selection error:', error);
