@@ -40,7 +40,7 @@ function setupEventListeners() {
 async function loadSettings() {
   try {
     const defaults = {
-      authServerUrl: 'https://auth.lhamacorp.com',
+      authServerUrl: 'https://example.com',
       username: '',
       password: '',
       refreshMargin: 3600

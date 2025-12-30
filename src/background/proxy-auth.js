@@ -25,7 +25,7 @@ async function initialize() {
 
 async function getSettings() {
   const defaults = {
-    authServerUrl: 'https://auth.lhamacorp.com',
+    authServerUrl: 'https://example.com',
     username: '',
     password: '',
     proxyHost: 'localhost',
