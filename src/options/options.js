@@ -21,7 +21,6 @@ function setupEventListeners() {
   });
 
   document.getElementById('save-btn').addEventListener('click', handleSave);
-  document.getElementById('test-auth-btn').addEventListener('click', handleTestAuth);
   document.getElementById('test-connection-btn').addEventListener('click', handleTestConnection);
   document.getElementById('clear-data-btn').addEventListener('click', handleClearData);
   document.getElementById('message-close').addEventListener('click', hideMessage);
@@ -119,6 +118,42 @@ async function handleSave() {
     markSaved();
     showMessage('Settings saved successfully!', 'success');
 
+    // Auto-authenticate if all credentials are provided
+    const hasCredentials = newSettings.username &&
+                          newSettings.password &&
+                          newSettings.authServerUrl &&
+                          !newSettings.authServerUrl.includes('example.com');
+
+    if (hasCredentials) {
+      // Show intermediate message to let user know we're auto-authenticating
+      showMessage('Settings saved! Auto-authenticating...', 'info');
+      console.log('Options: Auto-authenticating with saved credentials');
+
+      try {
+        const result = await sendMessage({
+          action: 'authenticate',
+          username: newSettings.username,
+          password: newSettings.password,
+          authServerUrl: newSettings.authServerUrl
+        });
+
+        if (result.success) {
+          showMessage('Settings saved and authenticated successfully! 🎉', 'success');
+        } else {
+          showMessage(`Settings saved, but authentication failed: ${result.error}`, 'warning');
+        }
+      } catch (authError) {
+        console.error('Options: Auto-authentication failed:', authError);
+
+        let errorMessage = 'Settings saved, but authentication failed';
+        if (authError.message && authError.message.includes('timeout')) {
+          errorMessage = 'Settings saved, but authentication timed out - check your server URL and try again';
+        }
+
+        showMessage(errorMessage, 'warning');
+      }
+    }
+
     setTimeout(refreshStatus, 500);
   } catch (error) {
     console.error('Options: Failed to save settings:', error);
@@ -146,37 +181,6 @@ function validateSettings(settings) {
   return { valid: true };
 }
 
-async function handleTestAuth() {
-  showLoading(true);
-
-  try {
-    const settings = getFormValues();
-
-    if (!settings.username || !settings.password) {
-      showMessage('Please enter username and password', 'error');
-      return;
-    }
-
-    const result = await sendMessage({
-      action: 'authenticate',
-      username: settings.username,
-      password: settings.password,
-      authServerUrl: settings.authServerUrl
-    });
-
-    if (result.success) {
-      showMessage('Authenticated!', 'success');
-      await refreshStatus();
-    } else {
-      showMessage(`Failed to authenticate: ${result.error}`, 'error');
-    }
-  } catch (error) {
-    console.error('Options: Test auth error:', error);
-    showMessage('Authentication test failed', 'error');
-  } finally {
-    showLoading(false);
-  }
-}
 
 async function handleTestConnection() {
   showLoading(true);
@@ -198,27 +202,56 @@ async function handleTestConnection() {
 }
 
 async function handleClearData() {
-  if (!confirm('This will clear all extension data including saved passwords and settings. Are you sure?')) {
+  if (!confirm('This will log you out, disconnect any proxy connection, and clear all extension data including saved passwords and settings. Are you sure?')) {
     return;
   }
 
   showLoading(true);
 
   try {
+    // Check if user is connected to a server
+    const isConnected = currentStatus && currentStatus.proxyConfigured;
+
+    // Step 1: Disconnect from server if connected
+    if (isConnected) {
+      console.log('Options: Disconnecting server before clearing data');
+
+      try {
+        // Clear server settings from storage
+        await browser.storage.local.remove(['proxyHost', 'proxyPort']);
+
+        // Disable proxy
+        await sendMessage({ action: 'toggleProxy', enable: false });
+
+        console.log('Options: Server disconnected successfully');
+      } catch (disconnectError) {
+        console.error('Options: Error disconnecting server:', disconnectError);
+        // Continue with clear data even if disconnect fails
+      }
+    }
+
+    // Step 2: Clear all storage and logout
     await browser.storage.local.clear();
     await loadSettings();
     await sendMessage({ action: 'logout' });
 
-    showMessage('All data cleared successfully', 'success');
+    showMessage(isConnected ? 'Disconnected, logged out, and all data cleared successfully' : 'Logged out and all data cleared successfully', 'success');
     await refreshStatus();
   } catch (error) {
     console.error('Options: Clear data error:', error);
-    showMessage('Failed to clear data', 'error');
+
+    let errorMessage = 'Failed to clear data';
+    if (error.message && error.message.includes('network')) {
+      errorMessage = 'Network error during data clearing';
+    } else if (error.message && error.message.includes('timeout')) {
+      errorMessage = 'Operation timed out';
+    }
+
+    showMessage(errorMessage, 'error');
   } finally {
     showLoading(false);
   }
 }
-
 
 async function refreshStatus() {
   try {
@@ -268,11 +301,19 @@ function updateStatusDisplay() {
     proxyIndicator.className = 'status-indicator disconnected';
     proxyDetails.textContent = 'Firefox proxy not configured';
   }
+
 }
 
 async function sendMessage(message) {
   return new Promise((resolve, reject) => {
+    // Set up timeout
+    const timeout = setTimeout(() => {
+      reject(new Error('Request timeout - no response from background script'));
+    }, 30000); // 30 second timeout
+
     browser.runtime.sendMessage(message, (response) => {
+      clearTimeout(timeout);
+
       if (browser.runtime.lastError) {
         reject(browser.runtime.lastError);
       } else {

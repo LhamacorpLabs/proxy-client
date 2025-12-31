@@ -28,10 +28,10 @@
         <div class="status-indicator" id="proxy-indicator"></div>
       </div>
 
-      <div class="status-item" id="token-expiry-item" style="display: none;">
-        <span class="status-label">Token expires:</span>
-        <span class="status-value" id="token-expiry">-</span>
-      </div>
+<!--      <div class="status-item" id="token-expiry-item" style="display: none;">-->
+<!--        <span class="status-label">Token expires:</span>-->
+<!--        <span class="status-value" id="token-expiry">-</span>-->
+<!--      </div>-->
     </div>
 
     <!-- Quick Login Section -->
@@ -54,7 +54,6 @@
 
     <!-- Server Selection Section -->
     <div class="server-section" id="server-section" style="display: none;">
-      <h3>Select Proxy Server</h3>
       <div class="server-selector">
         <select id="server-select" class="server-dropdown">
           <option value="">Select a server...</option>
@@ -62,29 +61,18 @@
         <button class="btn btn-icon" id="refresh-servers-btn" title="Refresh server list">
           &#x21bb;
         </button>
-      </div>
-      <div class="selected-server" id="selected-server-info" style="display: none;">
-        <button class="btn btn-danger" id="disconnect-btn">
-          Disconnect Server
+        <button class="btn btn-danger btn-icon" id="disconnect-btn" title="Disconnect server" style="display: none;">
+          &#x23FB;
         </button>
       </div>
-    </div>
-
-    <!-- Controls Section -->
-    <div class="controls-section">
-      <button class="btn btn-secondary" id="logout-btn" style="display: none;">
-        Logout
-      </button>
+      <div class="selected-server" id="selected-server-info" style="display: none;">
+      </div>
     </div>
 
     <!-- Actions Section -->
     <div class="actions-section">
       <button class="btn btn-link" id="open-options-btn">
         Settings
-      </button>
-
-      <button class="btn btn-link" id="refresh-status-btn">
-        Refresh Status
       </button>
     </div>
 

@@ -24,12 +24,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function setupEventListeners() {
   document.getElementById('login-form').addEventListener('submit', handleLogin);
-  document.getElementById('logout-btn').addEventListener('click', handleLogout);
   document.getElementById('server-select').addEventListener('change', handleServerSelect);
   document.getElementById('refresh-servers-btn').addEventListener('click', loadAvailableServers);
   document.getElementById('disconnect-btn').addEventListener('click', handleDisconnect);
   document.getElementById('open-options-btn').addEventListener('click', handleOpenOptions);
-  document.getElementById('refresh-status-btn').addEventListener('click', refreshStatus);
   document.getElementById('message-close').addEventListener('click', hideMessage);
   document.getElementById('logo').addEventListener('click', refreshStatus);
 }
@@ -134,15 +132,12 @@ function updateStatusDisplay() {
   // UI section visibility with safety checks
   const loginSection = document.getElementById('login-section');
   const serverSection = document.getElementById('server-section');
-  const logoutBtn = document.getElementById('logout-btn');
 
   if (!currentStatus.isAuthenticated && !currentStatus.hasCredentials) {
     if (loginSection) loginSection.style.display = 'block';
     if (serverSection) serverSection.style.display = 'none';
-    if (logoutBtn) logoutBtn.style.display = 'none';
   } else {
     if (loginSection) loginSection.style.display = 'none';
-    if (logoutBtn) logoutBtn.style.display = currentStatus.isAuthenticated ? 'block' : 'none';
 
     if (currentStatus.isAuthenticated) {
       if (serverSection) serverSection.style.display = 'block';
@@ -157,13 +152,13 @@ function updateStatusDisplay() {
 
   // CRITICAL: Synchronize disconnect button visibility with actual proxy state
   // The disconnect button should only be visible when proxy is actually connected
-  const selectedServerInfo = document.getElementById('selected-server-info');
+  const disconnectBtn = document.getElementById('disconnect-btn');
   const serverSelect = document.getElementById('server-select');
   const refreshServersBtn = document.getElementById('refresh-servers-btn');
 
-  if (selectedServerInfo) {
+  if (disconnectBtn) {
     if (currentStatus.proxyConfigured && currentStatus.isAuthenticated) {
-      selectedServerInfo.style.display = 'block';
+      disconnectBtn.style.display = 'inline-block';
 
       // Disable server dropdown and refresh button when connected - user must disconnect first
       if (serverSelect) {
@@ -174,7 +169,7 @@ function updateStatusDisplay() {
       }
       console.log('Popup: Server controls disabled - user is connected (must disconnect to change servers)');
     } else {
-      selectedServerInfo.style.display = 'none';
+      disconnectBtn.style.display = 'none';
 
       // Enable server dropdown and refresh button when disconnected
       if (serverSelect) {
@@ -255,7 +250,13 @@ async function handleLogin(event) {
 
   try {
     const settings = await browser.storage.local.get(['authServerUrl']);
-    const authServerUrl = settings.authServerUrl || 'https://exemple.com';
+    const authServerUrl = settings.authServerUrl || 'https://example.com';
+
+    // Check if user is trying to authenticate with invalid URL
+    if (authServerUrl === 'https://example.com' || authServerUrl.includes('example.com') || authServerUrl.includes('exemple.com')) {
+      showMessage('Please configure authentication server URL in settings first', 'error');
+      return;
+    }
 
     await browser.storage.local.set({ username, password });
 
@@ -293,7 +294,7 @@ async function handleLogin(event) {
 
 async function loadAvailableServers() {
   const serverSelect = document.getElementById('server-select');
-  const selectedServerInfo = document.getElementById('selected-server-info');
+  const disconnectBtn = document.getElementById('disconnect-btn');
   const refreshServersBtn = document.getElementById('refresh-servers-btn');
 
   // Safety check for DOM elements
@@ -340,7 +341,7 @@ async function loadAvailableServers() {
 
     if (availableServers.length === 0) {
       serverSelect.innerHTML = '<option value="">No servers available</option>';
-      if (selectedServerInfo) selectedServerInfo.style.display = 'none';
+      if (disconnectBtn) disconnectBtn.style.display = 'none';
     } else {
       // Add default "Select" option
       const defaultOption = document.createElement('option');
@@ -402,7 +403,7 @@ async function loadAvailableServers() {
       refreshServersBtn.disabled = isConnected;
     }
 
-    if (selectedServerInfo) selectedServerInfo.style.display = 'none';
+    if (disconnectBtn) disconnectBtn.style.display = 'none';
 
     // Reset available servers on error
     availableServers = [];
@@ -514,9 +515,9 @@ async function handleDisconnect() {
     }
 
     // Hide the disconnect button
-    const selectedServerInfo = document.getElementById('selected-server-info');
-    if (selectedServerInfo) {
-      selectedServerInfo.style.display = 'none';
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    if (disconnectBtn) {
+      disconnectBtn.style.display = 'none';
     }
 
     // Refresh status to update proxy indicators
@@ -538,62 +539,6 @@ async function handleDisconnect() {
 }
 
 
-async function handleLogout() {
-  // Check if user is connected to a server
-  const isConnected = currentStatus && currentStatus.proxyConfigured;
-  showLoading(true);
-
-  try {
-    // Step 1: Disconnect from server if connected
-    if (isConnected) {
-      console.log('Popup: Disconnecting server before logout');
-
-      try {
-        // Clear server settings from storage
-        await browser.storage.local.remove(['proxyHost', 'proxyPort']);
-
-        // Disable proxy
-        await sendMessage({ action: 'toggleProxy', enable: false });
-
-        // Clear UI elements
-        const serverSelect = document.getElementById('server-select');
-        if (serverSelect) serverSelect.value = '';
-
-        const selectedServerInfo = document.getElementById('selected-server-info');
-        if (selectedServerInfo) selectedServerInfo.style.display = 'none';
-
-        console.log('Popup: Server disconnected successfully before logout');
-      } catch (disconnectError) {
-        console.error('Popup: Error disconnecting server during logout:', disconnectError);
-        // Continue with logout even if disconnect fails
-      }
-    }
-
-    // Step 2: Proceed with logout
-    const result = await sendMessage({ action: 'logout' });
-
-    if (!result || !result.success) {
-      throw new Error(result?.error || 'Logout failed');
-    }
-
-    showMessage(isConnected ? 'Disconnected and logged out successfully' : 'Logged out successfully', 'success');
-    await refreshStatus();
-  } catch (error) {
-    console.error('Popup: Logout error:', error);
-
-    let errorMessage = 'Logout failed';
-    if (error.message && error.message.includes('network')) {
-      errorMessage = 'Network error during logout';
-    } else if (error.message && error.message.includes('timeout')) {
-      errorMessage = 'Logout timed out';
-    }
-
-    showMessage(errorMessage, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
 function handleOpenOptions() {
   browser.runtime.openOptionsPage();
   window.close();
@@ -601,7 +546,14 @@ function handleOpenOptions() {
 
 async function sendMessage(message) {
   return new Promise((resolve, reject) => {
+    // Set up timeout
+    const timeout = setTimeout(() => {
+      reject(new Error('Request timeout - no response from background script'));
+    }, 30000); // 30 second timeout
+
     browser.runtime.sendMessage(message, (response) => {
+      clearTimeout(timeout);
+
       if (browser.runtime.lastError) {
         reject(browser.runtime.lastError);
       } else {
