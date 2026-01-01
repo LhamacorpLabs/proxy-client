@@ -476,6 +476,7 @@ async function loadAvailableServers() {
 
     // Reset available servers on error
     availableServers = [];
+    await handleDisconnect();
   }
 }
 
