@@ -19,11 +19,9 @@ function getCountryFlag(countryName) {
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   await refreshStatus();
-  await loadSavedCredentials();
 });
 
 function setupEventListeners() {
-  document.getElementById('login-form').addEventListener('submit', handleLogin);
   document.getElementById('server-select').addEventListener('change', handleServerSelect);
   document.getElementById('refresh-servers-btn').addEventListener('click', loadAvailableServers);
   document.getElementById('disconnect-btn').addEventListener('click', handleDisconnect);
@@ -32,22 +30,6 @@ function setupEventListeners() {
   document.getElementById('logo').addEventListener('click', refreshStatus);
 }
 
-async function loadSavedCredentials() {
-  try {
-    const usernameInput = document.getElementById('username');
-    if (!usernameInput) {
-      console.warn('Popup: Username input not found');
-      return;
-    }
-
-    const result = await browser.storage.local.get(['username']);
-    if (result.username) {
-      usernameInput.value = result.username;
-    }
-  } catch (error) {
-    console.error('Popup: Failed to load saved credentials:', error);
-  }
-}
 
 async function refreshStatus() {
   showLoading(true);
@@ -133,24 +115,16 @@ function updateStatusDisplay() {
   }
 
   // UI section visibility with safety checks
-  const loginSection = document.getElementById('login-section');
   const serverSection = document.getElementById('server-section');
 
-  if (!currentStatus.isAuthenticated && !currentStatus.hasCredentials) {
-    if (loginSection) loginSection.style.display = 'block';
-    if (serverSection) serverSection.style.display = 'none';
+  if (currentStatus.isAuthenticated) {
+    if (serverSection) serverSection.style.display = 'block';
+    // Load servers asynchronously with error handling
+    loadAvailableServers().catch(error => {
+      console.error('Popup: Failed to load servers during status update:', error);
+    });
   } else {
-    if (loginSection) loginSection.style.display = 'none';
-
-    if (currentStatus.isAuthenticated) {
-      if (serverSection) serverSection.style.display = 'block';
-      // Load servers asynchronously with error handling
-      loadAvailableServers().catch(error => {
-        console.error('Popup: Failed to load servers during status update:', error);
-      });
-    } else {
-      if (serverSection) serverSection.style.display = 'none';
-    }
+    if (serverSection) serverSection.style.display = 'none';
   }
 
   // CRITICAL: Synchronize disconnect button visibility with actual proxy state
@@ -295,71 +269,6 @@ async function validateAndSyncProxyState() {
   }
 }
 
-async function handleLogin(event) {
-  event.preventDefault();
-
-  const usernameInput = document.getElementById('username');
-  const passwordInput = document.getElementById('password');
-
-  if (!usernameInput || !passwordInput) {
-    console.error('Popup: Login form elements not found');
-    showMessage('Login form is not available', 'error');
-    return;
-  }
-
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value;
-
-  if (!username || !password) {
-    showMessage('Please enter both username and password', 'error');
-    return;
-  }
-
-  showLoading(true);
-
-  try {
-    const settings = await browser.storage.local.get(['authServerUrl']);
-    const authServerUrl = settings.authServerUrl || 'https://example.com';
-
-    // Check if user is trying to authenticate with invalid URL
-    if (authServerUrl === 'https://example.com' || authServerUrl.includes('example.com') || authServerUrl.includes('exemple.com')) {
-      showMessage('Please configure authentication server URL in settings first', 'error');
-      return;
-    }
-
-    await browser.storage.local.set({ username, password });
-
-    const result = await sendMessage({
-      action: 'authenticate',
-      username,
-      password,
-      authServerUrl
-    });
-
-    if (!result || !result.success) {
-      throw new Error(result?.error || 'Authentication failed');
-    }
-
-    showMessage('Authentication successful!', 'success');
-    passwordInput.value = '';
-    await refreshStatus();
-  } catch (error) {
-    console.error('Popup: Login error:', error);
-
-    let errorMessage = 'Login failed. Please try again.';
-    if (error.message && error.message.includes('network')) {
-      errorMessage = 'Network error. Check your connection.';
-    } else if (error.message && error.message.includes('timeout')) {
-      errorMessage = 'Login timed out. Try again.';
-    } else if (error.message && (error.message.includes('invalid') || error.message.includes('unauthorized'))) {
-      errorMessage = 'Invalid username or password.';
-    }
-
-    showMessage(errorMessage, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
 
 async function loadAvailableServers() {
   const serverSelect = document.getElementById('server-select');
