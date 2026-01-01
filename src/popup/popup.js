@@ -58,6 +58,9 @@ async function refreshStatus() {
 
     // Validate and sync proxy state to fix inconsistencies
     await validateAndSyncProxyState();
+
+    // Fetch current IP address
+    await updateIPStatus();
   } catch (error) {
     console.error('Popup: Failed to refresh status:', error);
     showMessage('Failed to get status', 'error');
@@ -190,6 +193,72 @@ function updateStatusDisplay() {
     }
   }
 
+}
+
+async function updateIPStatus() {
+  const ipStatus = document.getElementById('ip-status');
+  const ipIndicator = document.getElementById('ip-indicator');
+
+  if (!ipStatus || !ipIndicator) {
+    console.error('Popup: IP status elements not found');
+    return;
+  }
+
+  try {
+    // Set loading state
+    ipStatus.textContent = 'Checking...';
+    ipIndicator.className = 'status-indicator';
+
+    // Fetch current IP address with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    const response = await fetch('https://api.ipify.org?format=text', {
+      method: 'GET',
+      cache: 'no-cache',
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const ipAddress = await response.text();
+    const cleanIP = ipAddress.trim();
+
+    // Update display based on proxy status
+    ipStatus.textContent = cleanIP;
+
+    if (currentStatus && currentStatus.proxyConfigured) {
+      // Connected through proxy
+      ipIndicator.className = 'status-indicator connected';
+      ipIndicator.title = 'IP through proxy';
+    } else {
+      // Direct connection (user's real IP)
+      ipIndicator.className = 'status-indicator warning';
+      ipIndicator.title = 'Your real IP address';
+    }
+  } catch (error) {
+    console.error('Popup: Failed to fetch IP address:', error);
+
+    // Show appropriate error message based on error type
+    let errorText = 'Failed to check';
+    let errorTitle = 'Could not determine IP address';
+
+    if (error.name === 'AbortError') {
+      errorText = 'Check timed out';
+      errorTitle = 'IP check took too long - network may be slow';
+    } else if (error.message && error.message.includes('network')) {
+      errorText = 'Network error';
+      errorTitle = 'Could not connect to IP service';
+    }
+
+    ipStatus.textContent = errorText;
+    ipIndicator.className = 'status-indicator disconnected';
+    ipIndicator.title = errorTitle;
+  }
 }
 
 // Helper function to clean up inconsistent state
