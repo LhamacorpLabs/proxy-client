@@ -1,5 +1,6 @@
 let currentStatus = null;
 let availableServers = [];
+let isLoadingServers = false;
 
 // Country name to flag emoji mapping for dropdown display
 function getCountryFlag(countryName) {
@@ -23,7 +24,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function setupEventListeners() {
   document.getElementById('server-select').addEventListener('change', handleServerSelect);
-  document.getElementById('refresh-servers-btn').addEventListener('click', loadAvailableServers);
+  document.getElementById('refresh-servers-btn').addEventListener('click', (event) => {
+    // Prevent multiple clicks while loading
+    if (isLoadingServers) {
+      event.preventDefault();
+      return;
+    }
+    loadAvailableServers();
+  });
   document.getElementById('disconnect-btn').addEventListener('click', handleDisconnect);
   document.getElementById('open-options-btn').addEventListener('click', handleOpenOptions);
   document.getElementById('message-close').addEventListener('click', hideMessage);
@@ -148,11 +156,11 @@ function updateStatusDisplay() {
     } else {
       disconnectBtn.style.display = 'none';
 
-      // Enable server dropdown and refresh button when disconnected
-      if (serverSelect) {
+      // Enable server dropdown and refresh button when disconnected, but only if not loading
+      if (serverSelect && !isLoadingServers) {
         serverSelect.disabled = false;
       }
-      if (refreshServersBtn) {
+      if (refreshServersBtn && !isLoadingServers) {
         refreshServersBtn.disabled = false;
       }
 
@@ -281,7 +289,17 @@ async function loadAvailableServers() {
     return;
   }
 
+  // Prevent multiple simultaneous loading requests
+  if (isLoadingServers) {
+    console.log('Popup: Server loading already in progress, skipping request');
+    return;
+  }
+
   try {
+    // Set loading state
+    isLoadingServers = true;
+
+    // Show loading state and lock dropdown
     serverSelect.innerHTML = '<option value="">Loading...</option>';
     serverSelect.disabled = true;
 
@@ -349,6 +367,9 @@ async function loadAvailableServers() {
       // This prevents the inconsistency where button shows but proxy is off
     }
 
+    // Clear loading state
+    isLoadingServers = false;
+
     // Only enable server controls if not connected to a server
     const isConnected = currentStatus && currentStatus.proxyConfigured && currentStatus.isAuthenticated;
     serverSelect.disabled = isConnected;
@@ -373,6 +394,9 @@ async function loadAvailableServers() {
 
     serverSelect.innerHTML = `<option value="">${errorMessage}</option>`;
 
+    // Clear loading state
+    isLoadingServers = false;
+
     // Only enable server controls if not connected to a server
     const isConnected = currentStatus && currentStatus.proxyConfigured && currentStatus.isAuthenticated;
     serverSelect.disabled = isConnected;
@@ -386,6 +410,9 @@ async function loadAvailableServers() {
     // Reset available servers on error
     availableServers = [];
     await handleDisconnect();
+  } finally {
+    // Ensure loading state is always cleared
+    isLoadingServers = false;
   }
 }
 
