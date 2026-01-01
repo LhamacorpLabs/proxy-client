@@ -168,45 +168,6 @@ body {
 }
 
 
-.form-group {
-  margin-bottom: 12px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 4px;
-  font-weight: 500;
-  color: #555;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-}
-
-/* Controls Section */
-.controls-section {
-  margin-bottom: 20px;
-}
-
-.controls-section .btn {
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.controls-section .btn:last-child {
-  margin-bottom: 0;
-}
 
 /* Actions Section */
 .actions-section {

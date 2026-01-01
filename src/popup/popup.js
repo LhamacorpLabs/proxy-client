@@ -2,10 +2,8 @@ let currentStatus = null;
 let availableServers = [];
 let isLoadingServers = false;
 
-// Country name to flag emoji mapping for dropdown display
 function getCountryFlag(countryName) {
   const flagMap = {
-    // Common countries
     'UNITED_STATES': '🇺🇸',
     'CANADA': '🇨🇦',
     'GERMANY': '🇩🇪',
@@ -13,7 +11,6 @@ function getCountryFlag(countryName) {
     'NETHERLANDS': '🇳🇱',
     'BRAZIL': '🇧🇷',
   };
-
   return flagMap[countryName] || '🌐';
 }
 
@@ -25,7 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupEventListeners() {
   document.getElementById('server-select').addEventListener('change', handleServerSelect);
   document.getElementById('refresh-servers-btn').addEventListener('click', (event) => {
-    // Prevent multiple clicks while loading
     if (isLoadingServers) {
       event.preventDefault();
       return;
@@ -45,11 +41,7 @@ async function refreshStatus() {
   try {
     currentStatus = await sendMessage({ action: 'getStatus' });
     updateStatusDisplay();
-
-    // Validate and sync proxy state to fix inconsistencies
     await validateAndSyncProxyState();
-
-    // Fetch current IP address
     await updateIPStatus();
   } catch (error) {
     console.error('Popup: Failed to refresh status:', error);
@@ -60,7 +52,6 @@ async function refreshStatus() {
 }
 
 function updateStatusDisplay() {
-  // Get DOM elements with safety checks
   const authStatus = document.getElementById('auth-status');
   const authIndicator = document.getElementById('auth-indicator');
   const tokenExpiryItem = document.getElementById('token-expiry-item');
@@ -71,7 +62,6 @@ function updateStatusDisplay() {
     return;
   }
 
-  // Handle null or incomplete status with fallbacks
   if (!currentStatus) {
     authStatus.textContent = 'Checking...';
     authIndicator.className = 'status-indicator';
@@ -83,8 +73,6 @@ function updateStatusDisplay() {
     if (proxyIndicator) proxyIndicator.className = 'status-indicator';
     return;
   }
-
-  // Authentication status with safety checks
   if (currentStatus.isAuthenticated) {
     authStatus.textContent = 'Connected';
     authIndicator.className = 'status-indicator connected';
@@ -108,7 +96,6 @@ function updateStatusDisplay() {
     if (tokenExpiryItem) tokenExpiryItem.style.display = 'none';
   }
 
-  // Proxy status with safety checks
   const proxyStatus = document.getElementById('proxy-status');
   const proxyIndicator = document.getElementById('proxy-indicator');
 
@@ -122,12 +109,10 @@ function updateStatusDisplay() {
     }
   }
 
-  // UI section visibility with safety checks
   const serverSection = document.getElementById('server-section');
 
   if (currentStatus.isAuthenticated) {
     if (serverSection) serverSection.style.display = 'block';
-    // Load servers asynchronously with error handling
     loadAvailableServers().catch(error => {
       console.error('Popup: Failed to load servers during status update:', error);
     });
@@ -135,8 +120,6 @@ function updateStatusDisplay() {
     if (serverSection) serverSection.style.display = 'none';
   }
 
-  // CRITICAL: Synchronize disconnect button visibility with actual proxy state
-  // The disconnect button should only be visible when proxy is actually connected
   const disconnectBtn = document.getElementById('disconnect-btn');
   const serverSelect = document.getElementById('server-select');
   const refreshServersBtn = document.getElementById('refresh-servers-btn');
@@ -144,33 +127,15 @@ function updateStatusDisplay() {
   if (disconnectBtn) {
     if (currentStatus.proxyConfigured && currentStatus.isAuthenticated) {
       disconnectBtn.style.display = 'inline-block';
-
-      // Disable server dropdown and refresh button when connected - user must disconnect first
-      if (serverSelect) {
-        serverSelect.disabled = true;
-      }
-      if (refreshServersBtn) {
-        refreshServersBtn.disabled = true;
-      }
-      console.log('Popup: Server controls disabled - user is connected (must disconnect to change servers)');
+      if (serverSelect) serverSelect.disabled = true;
+      if (refreshServersBtn) refreshServersBtn.disabled = true;
     } else {
       disconnectBtn.style.display = 'none';
+      if (serverSelect && !isLoadingServers) serverSelect.disabled = false;
+      if (refreshServersBtn && !isLoadingServers) refreshServersBtn.disabled = false;
 
-      // Enable server dropdown and refresh button when disconnected, but only if not loading
-      if (serverSelect && !isLoadingServers) {
-        serverSelect.disabled = false;
-      }
-      if (refreshServersBtn && !isLoadingServers) {
-        refreshServersBtn.disabled = false;
-      }
-
-      // If proxy is disconnected but we have stored server settings, clear the dropdown
-      // This fixes the inconsistency where dropdown shows selected server but proxy is off
-      if (!currentStatus.proxyConfigured) {
-        if (serverSelect && serverSelect.value !== '') {
-          console.log('Popup: State inconsistency detected - clearing server dropdown selection (proxy disconnected but server selected)');
-          serverSelect.value = '';
-        }
+      if (!currentStatus.proxyConfigured && serverSelect && serverSelect.value !== '') {
+        serverSelect.value = '';
       }
     }
   }
@@ -187,13 +152,11 @@ async function updateIPStatus() {
   }
 
   try {
-    // Set loading state
     ipStatus.textContent = 'Checking...';
     ipIndicator.className = 'status-indicator';
 
-    // Fetch current IP address with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch('https://api.ipify.org?format=text', {
       method: 'GET',
@@ -208,24 +171,18 @@ async function updateIPStatus() {
     }
 
     const ipAddress = await response.text();
-    const cleanIP = ipAddress.trim();
-
-    // Update display based on proxy status
-    ipStatus.textContent = cleanIP;
+    ipStatus.textContent = ipAddress.trim();
 
     if (currentStatus && currentStatus.proxyConfigured) {
-      // Connected through proxy
       ipIndicator.className = 'status-indicator connected';
       ipIndicator.title = 'IP through proxy';
     } else {
-      // Direct connection (user's real IP)
       ipIndicator.className = 'status-indicator warning';
       ipIndicator.title = 'Your real IP address';
     }
   } catch (error) {
     console.error('Popup: Failed to fetch IP address:', error);
 
-    // Show appropriate error message based on error type
     let errorText = 'Failed to check';
     let errorTitle = 'Could not determine IP address';
 
@@ -243,7 +200,6 @@ async function updateIPStatus() {
   }
 }
 
-// Helper function to clean up inconsistent state
 async function validateAndSyncProxyState() {
   if (!currentStatus) return;
 
@@ -253,24 +209,11 @@ async function validateAndSyncProxyState() {
     const proxyActuallyConfigured = currentStatus.proxyConfigured;
 
     if (hasStoredServer && !proxyActuallyConfigured) {
-      // State inconsistency detected: stored server but proxy not active
-      console.warn('Popup: State inconsistency detected:', {
-        storedServer: `${settings.proxyHost}:${settings.proxyPort}`,
-        proxyConfigured: proxyActuallyConfigured,
-        action: 'clearing stored settings'
-      });
-
       await browser.storage.local.remove(['proxyHost', 'proxyPort']);
-
-      // Clear dropdown selection
       const serverSelect = document.getElementById('server-select');
       if (serverSelect && serverSelect.value !== '') {
         serverSelect.value = '';
-        console.log('Popup: Cleared server dropdown selection to match proxy state');
       }
-    } else if (!hasStoredServer && proxyActuallyConfigured) {
-      // Proxy is configured but no stored settings - might be external config
-      console.info('Popup: Proxy active without stored server settings (external configuration?)');
     }
   } catch (error) {
     console.error('Popup: Error validating proxy state:', error);
@@ -283,27 +226,18 @@ async function loadAvailableServers() {
   const disconnectBtn = document.getElementById('disconnect-btn');
   const refreshServersBtn = document.getElementById('refresh-servers-btn');
 
-  // Safety check for DOM elements
   if (!serverSelect) {
     console.error('Popup: Server select element not found');
     return;
   }
 
-  // Prevent multiple simultaneous loading requests
-  if (isLoadingServers) {
-    console.log('Popup: Server loading already in progress, skipping request');
-    return;
-  }
+  if (isLoadingServers) return;
 
   try {
-    // Set loading state
     isLoadingServers = true;
-
-    // Show loading state and lock dropdown
     serverSelect.innerHTML = '<option value="">Loading...</option>';
     serverSelect.disabled = true;
 
-    // Also disable refresh button during loading
     if (refreshServersBtn) {
       refreshServersBtn.disabled = true;
     }
@@ -314,16 +248,13 @@ async function loadAvailableServers() {
       throw new Error(result?.error || 'Unknown error occurred while fetching servers');
     }
 
-    // Validate server data
     if (!Array.isArray(result.servers)) {
       throw new Error('Invalid server data received');
     }
 
     availableServers = result.servers.filter(server => {
-      // Validate each server has required properties
       if (!server || typeof server !== 'object') return false;
       if (!server.country || !server.host || !server.port) {
-        console.warn('Popup: Skipping invalid server:', server);
         return false;
       }
       return true;
@@ -339,7 +270,6 @@ async function loadAvailableServers() {
       serverSelect.innerHTML = '<option value="">No servers available</option>';
       if (disconnectBtn) disconnectBtn.style.display = 'none';
     } else {
-      // Add default "Select" option
       const defaultOption = document.createElement('option');
       defaultOption.value = '';
       defaultOption.textContent = 'Select a server...';
@@ -349,12 +279,10 @@ async function loadAvailableServers() {
         const option = document.createElement('option');
         option.value = index;
 
-        // Add flag emoji to country name
         const countryName = server.country || `Server ${index + 1}`;
         const flagEmoji = getCountryFlag(countryName);
         option.textContent = `${flagEmoji} ${countryName}`;
 
-        // Only mark as selected if proxy is actually configured AND storage matches
         if (currentStatus && currentStatus.proxyConfigured &&
             server.host === currentHost && server.port === parseInt(currentPort)) {
           option.selected = true;
@@ -362,29 +290,18 @@ async function loadAvailableServers() {
 
         serverSelect.appendChild(option);
       });
-
-      // Don't show disconnect button here - let updateStatusDisplay handle it
-      // This prevents the inconsistency where button shows but proxy is off
     }
 
-    // Clear loading state
     isLoadingServers = false;
-
-    // Only enable server controls if not connected to a server
     const isConnected = currentStatus && currentStatus.proxyConfigured && currentStatus.isAuthenticated;
     serverSelect.disabled = isConnected;
 
     if (refreshServersBtn) {
       refreshServersBtn.disabled = isConnected;
     }
-
-    if (isConnected) {
-      console.log('Popup: Keeping server controls disabled after loading - user is connected');
-    }
   } catch (error) {
     console.error('Popup: Failed to load servers:', error);
 
-    // Provide more helpful error messages
     let errorMessage = 'Failed to load servers';
     if (error.message && error.message.includes('network')) {
       errorMessage = 'Network error - check connection';
@@ -393,11 +310,7 @@ async function loadAvailableServers() {
     }
 
     serverSelect.innerHTML = `<option value="">${errorMessage}</option>`;
-
-    // Clear loading state
     isLoadingServers = false;
-
-    // Only enable server controls if not connected to a server
     const isConnected = currentStatus && currentStatus.proxyConfigured && currentStatus.isAuthenticated;
     serverSelect.disabled = isConnected;
 
@@ -406,12 +319,9 @@ async function loadAvailableServers() {
     }
 
     if (disconnectBtn) disconnectBtn.style.display = 'none';
-
-    // Reset available servers on error
     availableServers = [];
     await handleDisconnect();
   } finally {
-    // Ensure loading state is always cleared
     isLoadingServers = false;
   }
 }
@@ -419,7 +329,6 @@ async function loadAvailableServers() {
 async function handleServerSelect(event) {
   const selectedIndex = event.target.value;
 
-  // Validate selection
   if (selectedIndex === '' || !availableServers || !Array.isArray(availableServers)) {
     return;
   }
@@ -579,7 +488,7 @@ function showLoading(show) {
   try {
     document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
   } catch (error) {
-    console.warn('Popup: Error toggling button states:', error);
+    console.error('Popup: Error toggling button states:', error);
   }
 }
 
@@ -589,8 +498,6 @@ function showMessage(text, type = 'info') {
 
   if (!container || !messageText) {
     console.error('Popup: Message container elements not found');
-    // Fallback to console for critical errors
-    console.log(`${type.toUpperCase()}: ${text}`);
     return;
   }
 
