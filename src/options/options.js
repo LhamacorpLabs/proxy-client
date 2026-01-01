@@ -138,7 +138,7 @@ async function handleSave() {
         });
 
         if (result.success) {
-          showMessage('Settings saved and authenticated successfully! 🎉', 'success');
+          showMessage('Settings saved and authenticated successfully!', 'success');
         } else {
           showMessage(`Settings saved, but authentication failed: ${result.error}`, 'warning');
         }
