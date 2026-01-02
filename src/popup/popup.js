@@ -281,7 +281,8 @@ async function loadAvailableServers() {
 
         const countryName = server.country || `Server ${index + 1}`;
         const flagEmoji = getCountryFlag(countryName);
-        option.textContent = `${flagEmoji} ${countryName}`;
+        const alias = server.host === "localhost" ? "localhost" : server.host.split(".")[0];
+        option.textContent = `${flagEmoji} (${alias})`;
 
         if (currentStatus && currentStatus.proxyConfigured &&
             server.host === currentHost && server.port === parseInt(currentPort)) {
