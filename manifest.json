@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Lhamacorp Proxy Client",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Automatic JWT authentication for Lhamacorp SOCKS5 proxy server",
 
   "browser_specific_settings": {
