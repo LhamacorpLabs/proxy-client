@@ -25,7 +25,7 @@ class AuthService {
       proxyHost: 'localhost',
       proxyPort: 1080,
       autoConnect: false,
-      refreshMargin: 3600
+      refreshMargin: 300
     };
 
     const result = await browser.storage.local.get(Object.keys(defaults));
@@ -44,10 +44,20 @@ class AuthService {
   }
 
   async getToken() {
-    if (this.isTokenValid()) {
-      return this.tokenCache;
+    if (!this.isTokenValid()) {
+      await this.reauth();
     }
-    return await this.refreshToken();
+    return this.tokenCache;
+  }
+
+  async reauth() {
+    const settings = await this.getSettings();
+
+    if (!settings.username || !settings.password) {
+      throw new Error('No stored credentials available for authentication');
+    }
+
+    return await this.authenticate(settings.username, settings.password, settings.authServerUrl);
   }
 
   async authenticate(username, password, authServerUrl) {
@@ -88,16 +98,6 @@ class AuthService {
     return data.token;
   }
 
-  async refreshToken() {
-    const settings = await this.getSettings();
-
-    if (!settings.username || !settings.password) {
-      throw new Error('No stored credentials available for token refresh');
-    }
-
-    return await this.authenticate(settings.username, settings.password, settings.authServerUrl);
-  }
-
   parseJWT(token) {
     try {
       const base64Url = token.split('.')[1];
@@ -128,7 +128,7 @@ class AuthService {
 
     this.refreshTimer = setTimeout(async () => {
       try {
-        await this.refreshToken();
+        await this.reauth();
       } catch (error) {
         browser.notifications.create({
           type: 'basic',

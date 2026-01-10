@@ -42,7 +42,7 @@ async function loadSettings() {
       authServerUrl: 'https://example.com',
       username: '',
       password: '',
-      refreshMargin: 3600
+      refreshMargin: 300
     };
 
     const result = await browser.storage.local.get(Object.keys(defaults));
@@ -118,16 +118,13 @@ async function handleSave() {
     markSaved();
     showMessage('Settings saved successfully!', 'success');
 
-    // Auto-authenticate if all credentials are provided
     const hasCredentials = newSettings.username &&
                           newSettings.password &&
                           newSettings.authServerUrl &&
                           !newSettings.authServerUrl.includes('example.com');
 
     if (hasCredentials) {
-      // Show intermediate message to let user know we're auto-authenticating
       showMessage('Settings saved! Auto-authenticating...', 'info');
-      console.log('Options: Auto-authenticating with saved credentials');
 
       try {
         const result = await sendMessage({
@@ -174,13 +171,12 @@ function validateSettings(settings) {
     return { valid: false, error: 'Authentication server URL is not valid' };
   }
 
-  if (settings.refreshMargin < 60 || settings.refreshMargin > 3600) {
-    return { valid: false, error: 'Refresh margin must be between 60 and 3600 seconds' };
+  if (settings.refreshMargin < 300 || settings.refreshMargin > 3600) {
+    return { valid: false, error: 'Refresh margin must be between 300 and 3600 seconds' };
   }
 
   return { valid: true };
 }
-
 
 async function handleTestConnection() {
   showLoading(true);
@@ -209,28 +205,16 @@ async function handleClearData() {
   showLoading(true);
 
   try {
-    // Check if user is connected to a server
     const isConnected = currentStatus && currentStatus.proxyConfigured;
 
-    // Step 1: Disconnect from server if connected
     if (isConnected) {
-      console.log('Options: Disconnecting server before clearing data');
-
       try {
-        // Clear server settings from storage
         await browser.storage.local.remove(['proxyHost', 'proxyPort']);
-
-        // Disable proxy
         await sendMessage({ action: 'toggleProxy', enable: false });
-
-        console.log('Options: Server disconnected successfully');
       } catch (disconnectError) {
         console.error('Options: Error disconnecting server:', disconnectError);
-        // Continue with clear data even if disconnect fails
       }
     }
-
-    // Step 2: Clear all storage and logout
     await browser.storage.local.clear();
     await loadSettings();
     await sendMessage({ action: 'logout' });
@@ -301,7 +285,6 @@ function updateStatusDisplay() {
     proxyIndicator.className = 'status-indicator disconnected';
     proxyDetails.textContent = 'Firefox proxy not configured';
   }
-
 }
 
 async function sendMessage(message) {
@@ -324,7 +307,27 @@ async function sendMessage(message) {
 }
 
 function showLoading(show) {
-  document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+  const loadingOverlay = document.getElementById('loading-overlay');
+  loadingOverlay.style.display = show ? 'flex' : 'none';
+
+  if (show) {
+    let cancelBtn = loadingOverlay.querySelector('.cancel-btn');
+    if (!cancelBtn) {
+      cancelBtn = document.createElement('a');
+      cancelBtn.className = 'cancel-btn';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.href = '#';
+      cancelBtn.style.cssText = 'margin-top: 10px; color: #3498db; text-decoration: underline; cursor: pointer; font-size: 14px;';
+      cancelBtn.onclick = (e) => {
+        e.preventDefault();
+        showLoading(false);
+        showMessage('Operation cancelled', 'info');
+        location.reload();
+      };
+      loadingOverlay.appendChild(cancelBtn);
+    }
+  }
+
   document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
 }
 

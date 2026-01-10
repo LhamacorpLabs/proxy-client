@@ -119,7 +119,7 @@ async function getSettings() {
     proxyHost: 'localhost',
     proxyPort: 1080,
     autoConnect: false,
-    refreshMargin: 3600
+    refreshMargin: 300
   };
 
   const result = await browser.storage.local.get(Object.keys(defaults));

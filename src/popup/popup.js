@@ -343,7 +343,6 @@ async function handleServerSelect(event) {
 
   const server = availableServers[serverIndex];
 
-  // Validate server data
   if (!server.host || !server.port) {
     console.error('Popup: Server missing required data:', server);
     showMessage('Server configuration is incomplete', 'error');
@@ -363,7 +362,6 @@ async function handleServerSelect(event) {
       throw new Error(result?.error || 'Server selection failed');
     }
 
-    // Enable proxy when server is selected
     let proxyEnabled = false;
     try {
       await sendMessage({ action: 'toggleProxy', enable: true });
@@ -371,20 +369,14 @@ async function handleServerSelect(event) {
     } catch (proxyError) {
       console.error('Popup: Failed to enable proxy after server selection:', proxyError);
 
-      // If proxy failed to enable, clear the server selection to maintain consistency
       await browser.storage.local.remove(['proxyHost', 'proxyPort']);
-
-      // Reset dropdown
       const serverSelect = document.getElementById('server-select');
       if (serverSelect) serverSelect.value = '';
 
       throw new Error('Failed to enable proxy for selected server');
     }
 
-    // Refresh status to update all indicators
     await refreshStatus();
-
-    // Only show success if everything worked
     if (proxyEnabled) {
       const flagEmoji = getCountryFlag(server.country);
       showMessage(`Selected server: ${flagEmoji} ${server.country || server.host}`, 'success');
@@ -413,30 +405,21 @@ async function handleDisconnect() {
   showLoading(true);
 
   try {
-    // Clear the selected server from storage
     await browser.storage.local.remove(['proxyHost', 'proxyPort']);
-
-    // Disable proxy when disconnecting
     try {
       await sendMessage({ action: 'toggleProxy', enable: false });
     } catch (proxyError) {
       console.error('Popup: Failed to disable proxy during disconnect:', proxyError);
-      // Continue with disconnect even if proxy toggle fails
     }
-
-    // Reset server dropdown selection
     const serverSelect = document.getElementById('server-select');
     if (serverSelect) {
       serverSelect.value = '';
     }
-
-    // Hide the disconnect button
     const disconnectBtn = document.getElementById('disconnect-btn');
     if (disconnectBtn) {
       disconnectBtn.style.display = 'none';
     }
 
-    // Refresh status to update proxy indicators
     await refreshStatus();
 
     showMessage('Server disconnected', 'success');
@@ -462,10 +445,9 @@ function handleOpenOptions() {
 
 async function sendMessage(message) {
   return new Promise((resolve, reject) => {
-    // Set up timeout
     const timeout = setTimeout(() => {
       reject(new Error('Request timeout - no response from background script'));
-    }, 30000); // 30 second timeout
+    }, 30000);
 
     browser.runtime.sendMessage(message, (response) => {
       clearTimeout(timeout);
@@ -483,9 +465,26 @@ function showLoading(show) {
   const loadingOverlay = document.getElementById('loading-overlay');
   if (loadingOverlay) {
     loadingOverlay.style.display = show ? 'flex' : 'none';
+
+    if (show) {
+      let cancelBtn = loadingOverlay.querySelector('.cancel-btn');
+      if (!cancelBtn) {
+        cancelBtn = document.createElement('a');
+        cancelBtn.className = 'cancel-btn';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.href = '#';
+        cancelBtn.style.cssText = 'margin-top: 10px; color: #3498db; text-decoration: underline; cursor: pointer; font-size: 14px;';
+        cancelBtn.onclick = (e) => {
+          e.preventDefault();
+          showLoading(false);
+          showMessage('Operation cancelled', 'info');
+          location.reload();
+        };
+        loadingOverlay.appendChild(cancelBtn);
+      }
+    }
   }
 
-  // Disable/enable all buttons
   try {
     document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
   } catch (error) {
