@@ -16,6 +16,7 @@ function getCountryFlag(countryName) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
+  setupTheme();
   await refreshStatus();
 });
 
@@ -537,3 +538,12 @@ setInterval(() => {
     refreshStatus();
   }
 }, 30000);
+
+/**
+ * Setup theme functionality
+ */
+function setupTheme() {
+  // The theme manager is already initialized in theme.js
+  // Just setup the toggle button event listener
+  window.themeManager.setupToggleButton();
+}

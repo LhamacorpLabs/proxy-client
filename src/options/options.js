@@ -3,6 +3,7 @@ let currentStatus = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
+  setupTheme();
   await loadSettings();
   await refreshStatus();
 });
@@ -358,3 +359,12 @@ window.addEventListener('beforeunload', (e) => {
     e.returnValue = '';
   }
 });
+
+/**
+ * Setup theme functionality
+ */
+function setupTheme() {
+  // The theme manager is already initialized in theme.js
+  // Just setup the toggle button event listener
+  window.themeManager.setupToggleButton();
+}
