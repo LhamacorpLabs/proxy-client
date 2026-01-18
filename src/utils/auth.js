@@ -45,7 +45,14 @@ class AuthService {
 
   async getToken() {
     if (!this.isTokenValid()) {
-      await this.reauth();
+      try {
+        await this.reauth();
+      } catch (error) {
+        this.tokenCache = null;
+        this.tokenExpiry = null;
+        await browser.storage.local.remove(['authToken', 'tokenExpiry']);
+        return null;
+      }
     }
     return this.tokenCache;
   }
