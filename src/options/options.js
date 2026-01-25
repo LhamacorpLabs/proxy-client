@@ -41,9 +41,7 @@ async function loadSettings() {
   try {
     const defaults = {
       authServerUrl: 'https://example.com',
-      username: '',
-      password: '',
-      refreshMargin: 300
+      refreshMargin: 3600
     };
 
     const result = await browser.storage.local.get(Object.keys(defaults));
@@ -58,15 +56,20 @@ async function loadSettings() {
 
 function populateForm(settings) {
   const textFields = {
-    'auth-server-url': settings.authServerUrl,
-    'username': settings.username,
-    'password': settings.password
+    'auth-server-url': settings.authServerUrl
   };
 
+  // Set configuration fields from storage
   Object.entries(textFields).forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) element.value = value || '';
   });
+
+  // Always clear credential fields (they are not stored)
+  const usernameField = document.getElementById('username');
+  const passwordField = document.getElementById('password');
+  if (usernameField) usernameField.value = '';
+  if (passwordField) passwordField.value = '';
 
   const numberFields = {
     'refresh-margin': settings.refreshMargin
@@ -79,11 +82,20 @@ function populateForm(settings) {
 }
 
 function getFormValues() {
-  return {
+  const formData = {
     authServerUrl: document.getElementById('auth-server-url').value.trim(),
     username: document.getElementById('username').value.trim(),
     password: document.getElementById('password').value,
-    refreshMargin: parseInt(document.getElementById('refresh-margin').value) || 300
+    refreshMargin: parseInt(document.getElementById('refresh-margin').value) || 3600
+  };
+
+  // Separate credentials from settings to be stored
+  const { username, password, ...settingsToStore } = formData;
+
+  return {
+    all: formData,  // All form data including credentials
+    credentials: { username, password },  // Just credentials for authentication
+    settings: settingsToStore  // Settings to store (no credentials)
   };
 }
 
@@ -105,24 +117,26 @@ async function handleSave() {
   showLoading(true);
 
   try {
-    const newSettings = getFormValues();
+    const formData = getFormValues();
+    const { settings, credentials, all } = formData;
 
-    const validation = validateSettings(newSettings);
+    const validation = validateSettings(all);
     if (!validation.valid) {
       showMessage(`Invalid settings: ${validation.error}`, 'error');
       return;
     }
 
-    await browser.storage.local.set(newSettings);
-    currentSettings = newSettings;
+    // Save only settings (no credentials) to storage
+    await browser.storage.local.set(settings);
+    currentSettings = settings;
 
     markSaved();
     showMessage('Settings saved successfully!', 'success');
 
-    const hasCredentials = newSettings.username &&
-                          newSettings.password &&
-                          newSettings.authServerUrl &&
-                          !newSettings.authServerUrl.includes('example.com');
+    const hasCredentials = credentials.username &&
+                          credentials.password &&
+                          settings.authServerUrl &&
+                          !settings.authServerUrl.includes('example.com');
 
     if (hasCredentials) {
       showMessage('Settings saved! Auto-authenticating...', 'info');
@@ -130,13 +144,16 @@ async function handleSave() {
       try {
         const result = await sendMessage({
           action: 'authenticate',
-          username: newSettings.username,
-          password: newSettings.password,
-          authServerUrl: newSettings.authServerUrl
+          username: credentials.username,
+          password: credentials.password,
+          authServerUrl: settings.authServerUrl
         });
 
         if (result.success) {
-          showMessage('Settings saved and authenticated successfully!', 'success');
+          showMessage('Settings saved and authenticated successfully! Credentials cleared for security.', 'success');
+          // Clear credential fields for security after successful authentication
+          document.getElementById('username').value = '';
+          document.getElementById('password').value = '';
         } else {
           showMessage(`Settings saved, but authentication failed: ${result.error}`, 'warning');
         }

@@ -34,19 +34,19 @@
         <div class="setting-group">
           <label for="username">Username:</label>
           <input type="text" id="username" placeholder="Enter your username">
-          <small>Your authentication username</small>
+          <small>Used only for initial authentication - not stored permanently</small>
         </div>
 
         <div class="setting-group">
           <label for="password">Password:</label>
-          <input type="password" id="password" placeholder="Enter your password">
-          <small>Your authentication password (stored securely)</small>
+          <input type="password" id="password" placeholder="Enter password (not stored)">
+          <small>Used only for initial authentication - not stored permanently</small>
         </div>
 
         <div class="setting-group">
           <label for="refresh-margin">Token Refresh Margin (seconds):</label>
-          <input type="number" id="refresh-margin" min="60" max="3600" value="300">
-          <small>How early to refresh tokens before expiry (default: 300 seconds / 5 minutes)</small>
+          <input type="number" id="refresh-margin" min="60" max="14400" value="3600">
+          <small>How early to refresh tokens before expiry (default: 3600 seconds / 60 minutes)</small>
         </div>
       </section>
 

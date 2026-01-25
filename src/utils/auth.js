@@ -6,10 +6,40 @@ class AuthService {
   }
 
   async init() {
-    const result = await browser.storage.local.get(['authToken', 'tokenExpiry']);
-    if (result.authToken && result.tokenExpiry) {
-      this.tokenCache = result.authToken;
-      this.tokenExpiry = new Date(result.tokenExpiry);
+    // Check for stored credentials and handle migration
+    const migrationResult = await browser.storage.local.get([
+      'authToken', 'tokenExpiry', 'username', 'password', 'refreshMargin'
+    ]);
+
+    // Handle migration from credential-based authentication
+    if (migrationResult.username && migrationResult.password) {
+      console.log('AuthService: Migrating from credential-based authentication');
+
+      // Show migration notification to user
+      if (typeof browser.notifications !== 'undefined') {
+        browser.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon-48.png',
+          title: 'Security Update - Lhamacorp Proxy Client',
+          message: 'For enhanced security, credentials are no longer stored. Please re-authenticate when needed.'
+        });
+      }
+
+      // Clean up stored credentials immediately for security
+      await browser.storage.local.remove(['username', 'password']);
+      console.log('AuthService: Stored credentials removed for security');
+    }
+
+    // Migrate refresh margin from old default (300s) to new default (3600s)
+    if (migrationResult.refreshMargin === 300 || !migrationResult.refreshMargin) {
+      await browser.storage.local.set({ refreshMargin: 3600 });
+      console.log('AuthService: Updated refresh margin from 5 minutes to 60 minutes');
+    }
+
+    // Initialize token cache if valid token exists
+    if (migrationResult.authToken && migrationResult.tokenExpiry) {
+      this.tokenCache = migrationResult.authToken;
+      this.tokenExpiry = new Date(migrationResult.tokenExpiry);
 
       if (this.isTokenValid()) {
         this.scheduleTokenRefresh();
@@ -20,12 +50,10 @@ class AuthService {
   async getSettings() {
     const defaults = {
       authServerUrl: 'https://example.com',
-      username: '',
-      password: '',
       proxyHost: 'localhost',
       proxyPort: 1080,
       autoConnect: false,
-      refreshMargin: 300
+      refreshMargin: 3600
     };
 
     const result = await browser.storage.local.get(Object.keys(defaults));
@@ -46,7 +74,7 @@ class AuthService {
   async getToken() {
     if (!this.isTokenValid()) {
       try {
-        await this.reauth();
+        await this.refreshToken();
       } catch (error) {
         this.tokenCache = null;
         this.tokenExpiry = null;
@@ -57,14 +85,78 @@ class AuthService {
     return this.tokenCache;
   }
 
-  async reauth() {
-    const settings = await this.getSettings();
-
-    if (!settings.username || !settings.password) {
-      throw new Error('No stored credentials available for authentication');
+  async refreshToken(retryAttempt = 0) {
+    if (!this.tokenCache) {
+      throw new Error('No token available for refresh');
     }
 
-    return await this.authenticate(settings.username, settings.password, settings.authServerUrl);
+    const settings = await this.getSettings();
+
+    try {
+      const response = await fetch(`${settings.authServerUrl}/api/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.tokenCache}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.tokenCache = null;
+          this.tokenExpiry = null;
+          await browser.storage.local.remove(['authToken', 'tokenExpiry']);
+          throw new Error('Token refresh failed - re-authentication required');
+        }
+
+        if (response.status >= 500 && retryAttempt === 0) {
+          console.log('AuthService: Server error during refresh, retrying in 30 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 30000));
+          return await this.refreshToken(1);
+        }
+
+        throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.token) {
+        throw new Error('No token received from refresh endpoint');
+      }
+
+      let expiryTime;
+      if (data.expirationDate) {
+        expiryTime = new Date(data.expirationDate);
+      } else {
+        const tokenPayload = this.parseJWT(data.token);
+        expiryTime = new Date(tokenPayload.exp * 1000);
+      }
+
+      this.tokenCache = data.token;
+      this.tokenExpiry = expiryTime;
+
+      await browser.storage.local.set({
+        authToken: data.token,
+        tokenExpiry: expiryTime.toISOString()
+      });
+
+      this.scheduleTokenRefresh();
+
+      console.log('AuthService: Token refreshed successfully');
+      return data.token;
+
+    } catch (error) {
+      // Network error - retry once after delay
+      if (error.name === 'TypeError' && retryAttempt === 0) {
+        console.log('AuthService: Network error during refresh, retrying in 30 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 30000));
+        return await this.refreshToken(1);
+      }
+
+      // Log the error for debugging
+      console.error('AuthService: Token refresh failed:', error.message);
+      throw error;
+    }
   }
 
   async authenticate(username, password, authServerUrl) {
@@ -135,13 +227,13 @@ class AuthService {
 
     this.refreshTimer = setTimeout(async () => {
       try {
-        await this.reauth();
+        await this.refreshToken();
       } catch (error) {
         browser.notifications.create({
           type: 'basic',
           iconUrl: 'icons/icon-48.png',
           title: 'Lhamacorp Proxy Client',
-          message: 'Authentication expired. Please login again.'
+          message: 'Token refresh failed. Please re-authenticate in the options page.'
         });
       }
     }, delay);

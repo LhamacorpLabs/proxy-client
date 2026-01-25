@@ -57,7 +57,7 @@ async function updateStatusIcon() {
   try {
     const status = authService.getStatus();
     const settings = await getSettings();
-    const hasCredentials = !!(settings.username && settings.password);
+    const hasCredentials = status.isAuthenticated; // Token-based authentication
     const isAuthenticated = status.isAuthenticated;
     const isConnected = proxyEnabled && isAuthenticated;
 
@@ -114,12 +114,10 @@ async function initialize() {
 async function getSettings() {
   const defaults = {
     authServerUrl: 'https://example.com',
-    username: '',
-    password: '',
     proxyHost: 'localhost',
     proxyPort: 1080,
     autoConnect: false,
-    refreshMargin: 300
+    refreshMargin: 3600
   };
 
   const result = await browser.storage.local.get(Object.keys(defaults));
@@ -157,11 +155,22 @@ async function handleProxyRequest(requestInfo) {
     return { type: 'direct' };
   }
 
+  // Extract username from JWT token for SOCKS authentication
+  let username = 'user'; // fallback
+  try {
+    const tokenPayload = authService.parseJWT(token);
+    if (tokenPayload && tokenPayload.sub) {
+      username = tokenPayload.sub;
+    }
+  } catch (error) {
+    console.log('ProxyAuth: Could not extract username from token, using fallback');
+  }
+
   return {
     type: 'socks',
     host: settings.proxyHost,
     port: parseInt(settings.proxyPort),
-    username: settings.username,
+    username: username,
     password: token,
     proxyDNS: true
   };
@@ -259,7 +268,7 @@ browser.runtime.onMessage.addListener(async (message) => {
     case 'getStatus':
       const status = authService.getStatus();
       const settings = await getSettings();
-      status.hasCredentials = !!(settings.username && settings.password);
+      status.hasCredentials = status.isAuthenticated; // Token-based authentication
       status.proxyConfigured = proxyEnabled;
       return Promise.resolve(status);
 
