@@ -444,6 +444,16 @@ details[open] summary {
   transform: translateY(-1px);
 }
 
+.btn-warning {
+  background: var(--warning);
+  color: #212529;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #e0a800;
+  transform: translateY(-1px);
+}
+
 .btn-link {
   background: transparent;
   color: var(--primary);

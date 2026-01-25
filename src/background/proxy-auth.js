@@ -350,6 +350,30 @@ browser.runtime.onMessage.addListener(async (message) => {
         return Promise.resolve({ success: false, error: error.message });
       }
 
+    case 'disconnectProxy':
+      try {
+        // Force disconnect proxy and clear configuration
+        await clearProxy();
+        proxyEnabled = false;
+
+        // Also clear autoConnect to prevent automatic reconnection
+        await browser.storage.local.set({ autoConnect: false });
+
+        await updateStatusIcon();
+
+        browser.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon-48.png',
+          title: 'Lhamacorp Proxy Client',
+          message: 'Proxy disconnected successfully'
+        });
+
+        return Promise.resolve({ success: true, message: 'Proxy disconnected and SOCKS configuration cleared' });
+      } catch (error) {
+        console.error('ProxyAuth: Disconnect proxy error:', error);
+        return Promise.resolve({ success: false, error: error.message });
+      }
+
     default:
       return Promise.resolve({ success: false, error: 'Unknown action' });
   }

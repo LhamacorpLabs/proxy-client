@@ -23,6 +23,7 @@ function setupEventListeners() {
 
   document.getElementById('save-btn').addEventListener('click', handleSave);
   document.getElementById('test-connection-btn').addEventListener('click', handleTestConnection);
+  document.getElementById('disconnect-proxy-btn').addEventListener('click', handleDisconnectProxy);
   document.getElementById('clear-data-btn').addEventListener('click', handleClearData);
   document.getElementById('message-close').addEventListener('click', hideMessage);
 
@@ -245,6 +246,38 @@ async function handleClearData() {
     let errorMessage = 'Failed to clear data';
     if (error.message && error.message.includes('network')) {
       errorMessage = 'Network error during data clearing';
+    } else if (error.message && error.message.includes('timeout')) {
+      errorMessage = 'Operation timed out';
+    }
+
+    showMessage(errorMessage, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function handleDisconnectProxy() {
+  if (!confirm('This will disconnect any active proxy connections and disable SOCKS proxy. You will need to reconnect manually. Are you sure?')) {
+    return;
+  }
+
+  showLoading(true);
+
+  try {
+    const result = await sendMessage({ action: 'disconnectProxy' });
+
+    if (result.success) {
+      showMessage('Proxy disconnected successfully', 'success');
+      await refreshStatus();
+    } else {
+      showMessage(`Failed to disconnect proxy: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('Options: Disconnect proxy error:', error);
+
+    let errorMessage = 'Failed to disconnect proxy';
+    if (error.message && error.message.includes('network')) {
+      errorMessage = 'Network error during proxy disconnection';
     } else if (error.message && error.message.includes('timeout')) {
       errorMessage = 'Operation timed out';
     }
