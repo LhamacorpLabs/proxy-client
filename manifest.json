@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Lhamacorp Proxy Client",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Lhamacorp VPN client",
 
   "browser_specific_settings": {

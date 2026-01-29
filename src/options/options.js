@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function setupEventListeners() {
   const formElements = [
-    'auth-server-url', 'username', 'password', 'refresh-margin'
+    'auth-server-url', 'username', 'password'
   ];
 
   formElements.forEach(id => {
@@ -41,8 +41,7 @@ function setupEventListeners() {
 async function loadSettings() {
   try {
     const defaults = {
-      authServerUrl: 'https://example.com',
-      refreshMargin: 3600
+      authServerUrl: 'https://example.com'
     };
 
     const result = await browser.storage.local.get(Object.keys(defaults));
@@ -71,23 +70,13 @@ function populateForm(settings) {
   const passwordField = document.getElementById('password');
   if (usernameField) usernameField.value = '';
   if (passwordField) passwordField.value = '';
-
-  const numberFields = {
-    'refresh-margin': settings.refreshMargin
-  };
-
-  Object.entries(numberFields).forEach(([id, value]) => {
-    const element = document.getElementById(id);
-    if (element) element.value = value || '';
-  });
 }
 
 function getFormValues() {
   const formData = {
     authServerUrl: document.getElementById('auth-server-url').value.trim(),
     username: document.getElementById('username').value.trim(),
-    password: document.getElementById('password').value,
-    refreshMargin: parseInt(document.getElementById('refresh-margin').value) || 3600
+    password: document.getElementById('password').value
   };
 
   // Separate credentials from settings to be stored
@@ -188,10 +177,6 @@ function validateSettings(settings) {
     new URL(settings.authServerUrl);
   } catch {
     return { valid: false, error: 'Authentication server URL is not valid' };
-  }
-
-  if (settings.refreshMargin < 300 || settings.refreshMargin > 3600) {
-    return { valid: false, error: 'Refresh margin must be between 300 and 3600 seconds' };
   }
 
   return { valid: true };
