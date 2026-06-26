@@ -15,19 +15,11 @@
   },
 
   "permissions": [
-    "webRequest",
-    "webRequestBlocking",
     "proxy",
-    "privacy",
     "storage",
-    "activeTab",
     "contextMenus",
     "notifications",
-    "http://localhost/*",
-    "https://localhost/*",
-    "https://auth.lhamacorp.com/*",
     "https://proxy-manager.lhamacorp.com/*",
-    "http://httpbin.org/*",
     "<all_urls>"
   ],
 
@@ -61,7 +53,5 @@
     "128": "icons/icon-128.png"
   },
 
-  "web_accessible_resources": [
-    "src/utils/*"
-  ]
+  "web_accessible_resources": []
 }

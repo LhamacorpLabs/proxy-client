@@ -9,9 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function setupEventListeners() {
-  const formElements = [
-    'auth-server-url', 'username', 'password'
-  ];
+  const formElements = ['auth-server-url', 'username', 'password'];
 
   formElements.forEach(id => {
     const element = document.getElementById(id);
@@ -40,13 +38,9 @@ function setupEventListeners() {
 
 async function loadSettings() {
   try {
-    const defaults = {
-      authServerUrl: 'https://example.com'
-    };
-
+    const defaults = { authServerUrl: 'https://example.com' };
     const result = await browser.storage.local.get(Object.keys(defaults));
     currentSettings = { ...defaults, ...result };
-
     populateForm(currentSettings);
   } catch (error) {
     console.error('Options: Failed to load settings:', error);
@@ -55,17 +49,9 @@ async function loadSettings() {
 }
 
 function populateForm(settings) {
-  const textFields = {
-    'auth-server-url': settings.authServerUrl
-  };
+  const urlField = document.getElementById('auth-server-url');
+  if (urlField) urlField.value = settings.authServerUrl || '';
 
-  // Set configuration fields from storage
-  Object.entries(textFields).forEach(([id, value]) => {
-    const element = document.getElementById(id);
-    if (element) element.value = value || '';
-  });
-
-  // Always clear credential fields (they are not stored)
   const usernameField = document.getElementById('username');
   const passwordField = document.getElementById('password');
   if (usernameField) usernameField.value = '';
@@ -73,19 +59,14 @@ function populateForm(settings) {
 }
 
 function getFormValues() {
-  const formData = {
-    authServerUrl: document.getElementById('auth-server-url').value.trim(),
-    username: document.getElementById('username').value.trim(),
-    password: document.getElementById('password').value
-  };
-
-  // Separate credentials from settings to be stored
-  const { username, password, ...settingsToStore } = formData;
+  const authServerUrl = document.getElementById('auth-server-url').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
 
   return {
-    all: formData,  // All form data including credentials
-    credentials: { username, password },  // Just credentials for authentication
-    settings: settingsToStore  // Settings to store (no credentials)
+    all: { authServerUrl, username, password },
+    credentials: { username, password },
+    settings: { authServerUrl }
   };
 }
 
@@ -116,7 +97,6 @@ async function handleSave() {
       return;
     }
 
-    // Save only settings (no credentials) to storage
     await browser.storage.local.set(settings);
     currentSettings = settings;
 
@@ -141,20 +121,15 @@ async function handleSave() {
 
         if (result.success) {
           showMessage('Settings saved and authenticated successfully! Credentials cleared for security.', 'success');
-          // Clear credential fields for security after successful authentication
           document.getElementById('username').value = '';
           document.getElementById('password').value = '';
         } else {
           showMessage(`Settings saved, but authentication failed: ${result.error}`, 'warning');
         }
       } catch (authError) {
-        console.error('Options: Auto-authentication failed:', authError);
-
-        let errorMessage = 'Settings saved, but authentication failed';
-        if (authError.message && authError.message.includes('timeout')) {
-          errorMessage = 'Settings saved, but authentication timed out - check your server URL and try again';
-        }
-
+        const errorMessage = authError.message && authError.message.includes('timeout')
+          ? 'Settings saved, but authentication timed out - check your server URL and try again'
+          : 'Settings saved, but authentication failed';
         showMessage(errorMessage, 'warning');
       }
     }
@@ -194,7 +169,6 @@ async function handleTestConnection() {
       showMessage(`Connection test failed: ${result.error}`, 'error');
     }
   } catch (error) {
-    console.error('Options: Test connection error:', error);
     showMessage('Connection test failed', 'error');
   } finally {
     showLoading(false);
@@ -226,16 +200,7 @@ async function handleClearData() {
     showMessage(isConnected ? 'Disconnected, logged out, and all data cleared successfully' : 'Logged out and all data cleared successfully', 'success');
     await refreshStatus();
   } catch (error) {
-    console.error('Options: Clear data error:', error);
-
-    let errorMessage = 'Failed to clear data';
-    if (error.message && error.message.includes('network')) {
-      errorMessage = 'Network error during data clearing';
-    } else if (error.message && error.message.includes('timeout')) {
-      errorMessage = 'Operation timed out';
-    }
-
-    showMessage(errorMessage, 'error');
+    showMessage('Failed to clear data', 'error');
   } finally {
     showLoading(false);
   }
@@ -258,16 +223,7 @@ async function handleDisconnectProxy() {
       showMessage(`Failed to disconnect proxy: ${result.error}`, 'error');
     }
   } catch (error) {
-    console.error('Options: Disconnect proxy error:', error);
-
-    let errorMessage = 'Failed to disconnect proxy';
-    if (error.message && error.message.includes('network')) {
-      errorMessage = 'Network error during proxy disconnection';
-    } else if (error.message && error.message.includes('timeout')) {
-      errorMessage = 'Operation timed out';
-    }
-
-    showMessage(errorMessage, 'error');
+    showMessage('Failed to disconnect proxy', 'error');
   } finally {
     showLoading(false);
   }
@@ -298,10 +254,6 @@ function updateStatusDisplay() {
       tokenExpiry.textContent = new Date(currentStatus.tokenExpiry).toLocaleString();
       tokenInfo.style.display = 'block';
     }
-  } else if (currentStatus.hasCredentials) {
-    authStatus.textContent = 'Expired - credentials available';
-    authIndicator.className = 'status-indicator warning';
-    tokenInfo.style.display = 'none';
   } else {
     authStatus.textContent = 'Not configured';
     authIndicator.className = 'status-indicator disconnected';
@@ -323,65 +275,6 @@ function updateStatusDisplay() {
   }
 }
 
-async function sendMessage(message) {
-  return new Promise((resolve, reject) => {
-    // Set up timeout
-    const timeout = setTimeout(() => {
-      reject(new Error('Request timeout - no response from background script'));
-    }, 30000); // 30 second timeout
-
-    browser.runtime.sendMessage(message, (response) => {
-      clearTimeout(timeout);
-
-      if (browser.runtime.lastError) {
-        reject(browser.runtime.lastError);
-      } else {
-        resolve(response);
-      }
-    });
-  });
-}
-
-function showLoading(show) {
-  const loadingOverlay = document.getElementById('loading-overlay');
-  loadingOverlay.style.display = show ? 'flex' : 'none';
-
-  if (show) {
-    let cancelBtn = loadingOverlay.querySelector('.cancel-btn');
-    if (!cancelBtn) {
-      cancelBtn = document.createElement('a');
-      cancelBtn.className = 'cancel-btn';
-      cancelBtn.textContent = 'Cancel';
-      cancelBtn.href = '#';
-      cancelBtn.style.cssText = 'margin-top: 10px; color: #3498db; text-decoration: underline; cursor: pointer; font-size: 14px;';
-      cancelBtn.onclick = (e) => {
-        e.preventDefault();
-        showLoading(false);
-        showMessage('Operation cancelled', 'info');
-        location.reload();
-      };
-      loadingOverlay.appendChild(cancelBtn);
-    }
-  }
-
-  document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
-}
-
-function showMessage(text, type = 'info') {
-  const container = document.getElementById('message-container');
-  document.getElementById('message-text').textContent = text;
-  container.className = `message ${type}`;
-  container.style.display = 'block';
-
-  if (type === 'success') {
-    setTimeout(hideMessage, 5000);
-  }
-}
-
-function hideMessage() {
-  document.getElementById('message-container').style.display = 'none';
-}
-
 setInterval(() => {
   if (document.visibilityState === 'visible') {
     refreshStatus();
@@ -394,12 +287,3 @@ window.addEventListener('beforeunload', (e) => {
     e.returnValue = '';
   }
 });
-
-/**
- * Setup theme functionality
- */
-function setupTheme() {
-  // The theme manager is already initialized in theme.js
-  // Just setup the toggle button event listener
-  window.themeManager.setupToggleButton();
-}

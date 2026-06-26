@@ -35,7 +35,6 @@ function setupEventListeners() {
   document.getElementById('logo').addEventListener('click', refreshStatus);
 }
 
-
 async function refreshStatus() {
   showLoading(true);
 
@@ -58,10 +57,7 @@ function updateStatusDisplay() {
   const tokenExpiryItem = document.getElementById('token-expiry-item');
   const tokenExpiry = document.getElementById('token-expiry');
 
-  if (!authStatus || !authIndicator) {
-    console.error('Popup: Critical DOM elements missing for status display');
-    return;
-  }
+  if (!authStatus || !authIndicator) return;
 
   if (!currentStatus) {
     authStatus.textContent = 'Checking...';
@@ -74,6 +70,7 @@ function updateStatusDisplay() {
     if (proxyIndicator) proxyIndicator.className = 'status-indicator';
     return;
   }
+
   if (currentStatus.isAuthenticated) {
     authStatus.textContent = 'Connected';
     authIndicator.className = 'status-indicator connected';
@@ -83,14 +80,9 @@ function updateStatusDisplay() {
         tokenExpiry.textContent = formatRelativeTime(new Date(currentStatus.tokenExpiry));
         tokenExpiryItem.style.display = 'block';
       } catch (error) {
-        console.error('Popup: Error formatting token expiry:', error);
         if (tokenExpiryItem) tokenExpiryItem.style.display = 'none';
       }
     }
-  } else if (currentStatus.hasCredentials) {
-    authStatus.textContent = 'Expired';
-    authIndicator.className = 'status-indicator warning';
-    if (tokenExpiryItem) tokenExpiryItem.style.display = 'none';
   } else {
     authStatus.textContent = 'Not configured';
     authIndicator.className = 'status-indicator disconnected';
@@ -140,17 +132,13 @@ function updateStatusDisplay() {
       }
     }
   }
-
 }
 
 async function updateIPStatus() {
   const ipStatus = document.getElementById('ip-status');
   const ipIndicator = document.getElementById('ip-indicator');
 
-  if (!ipStatus || !ipIndicator) {
-    console.error('Popup: IP status elements not found');
-    return;
-  }
+  if (!ipStatus || !ipIndicator) return;
 
   try {
     ipStatus.textContent = 'Checking...';
@@ -182,8 +170,6 @@ async function updateIPStatus() {
       ipIndicator.title = 'Your real IP address';
     }
   } catch (error) {
-    console.error('Popup: Failed to fetch IP address:', error);
-
     let errorText = 'Failed to check';
     let errorTitle = 'Could not determine IP address';
 
@@ -207,9 +193,8 @@ async function validateAndSyncProxyState() {
   try {
     const settings = await browser.storage.local.get(['proxyHost', 'proxyPort']);
     const hasStoredServer = !!(settings.proxyHost && settings.proxyPort);
-    const proxyActuallyConfigured = currentStatus.proxyConfigured;
 
-    if (hasStoredServer && !proxyActuallyConfigured) {
+    if (hasStoredServer && !currentStatus.proxyConfigured) {
       await browser.storage.local.remove(['proxyHost', 'proxyPort']);
       const serverSelect = document.getElementById('server-select');
       if (serverSelect && serverSelect.value !== '') {
@@ -221,27 +206,18 @@ async function validateAndSyncProxyState() {
   }
 }
 
-
 async function loadAvailableServers() {
   const serverSelect = document.getElementById('server-select');
   const disconnectBtn = document.getElementById('disconnect-btn');
   const refreshServersBtn = document.getElementById('refresh-servers-btn');
 
-  if (!serverSelect) {
-    console.error('Popup: Server select element not found');
-    return;
-  }
-
-  if (isLoadingServers) return;
+  if (!serverSelect || isLoadingServers) return;
 
   try {
     isLoadingServers = true;
     serverSelect.innerHTML = '<option value="">Loading...</option>';
     serverSelect.disabled = true;
-
-    if (refreshServersBtn) {
-      refreshServersBtn.disabled = true;
-    }
+    if (refreshServersBtn) refreshServersBtn.disabled = true;
 
     const result = await sendMessage({ action: 'getServers' });
 
@@ -253,13 +229,9 @@ async function loadAvailableServers() {
       throw new Error('Invalid server data received');
     }
 
-    availableServers = result.servers.filter(server => {
-      if (!server || typeof server !== 'object') return false;
-      if (!server.country || !server.host || !server.port) {
-        return false;
-      }
-      return true;
-    });
+    availableServers = result.servers.filter(server =>
+      server && typeof server === 'object' && server.country && server.host && server.port
+    );
 
     const settings = await browser.storage.local.get(['proxyHost', 'proxyPort']);
     const currentHost = settings.proxyHost || '';
@@ -297,29 +269,15 @@ async function loadAvailableServers() {
     isLoadingServers = false;
     const isConnected = currentStatus && currentStatus.proxyConfigured && currentStatus.isAuthenticated;
     serverSelect.disabled = isConnected;
-
-    if (refreshServersBtn) {
-      refreshServersBtn.disabled = isConnected;
-    }
+    if (refreshServersBtn) refreshServersBtn.disabled = isConnected;
   } catch (error) {
     console.error('Popup: Failed to load servers:', error);
 
-    let errorMessage = 'Failed to load servers';
-    if (error.message && error.message.includes('network')) {
-      errorMessage = 'Network error - check connection';
-    } else if (error.message && error.message.includes('timeout')) {
-      errorMessage = 'Request timeout - try again';
-    }
-
-    serverSelect.innerHTML = `<option value="">${errorMessage}</option>`;
+    serverSelect.innerHTML = `<option value="">Failed to load servers</option>`;
     isLoadingServers = false;
     const isConnected = currentStatus && currentStatus.proxyConfigured && currentStatus.isAuthenticated;
     serverSelect.disabled = isConnected;
-
-    if (refreshServersBtn) {
-      refreshServersBtn.disabled = isConnected;
-    }
-
+    if (refreshServersBtn) refreshServersBtn.disabled = isConnected;
     if (disconnectBtn) disconnectBtn.style.display = 'none';
     availableServers = [];
     await handleDisconnect();
@@ -337,7 +295,6 @@ async function handleServerSelect(event) {
 
   const serverIndex = parseInt(selectedIndex);
   if (isNaN(serverIndex) || !availableServers[serverIndex]) {
-    console.error('Popup: Invalid server selection:', selectedIndex);
     showMessage('Invalid server selection', 'error');
     return;
   }
@@ -345,7 +302,6 @@ async function handleServerSelect(event) {
   const server = availableServers[serverIndex];
 
   if (!server.host || !server.port) {
-    console.error('Popup: Server missing required data:', server);
     showMessage('Server configuration is incomplete', 'error');
     return;
   }
@@ -363,40 +319,22 @@ async function handleServerSelect(event) {
       throw new Error(result?.error || 'Server selection failed');
     }
 
-    let proxyEnabled = false;
     try {
       await sendMessage({ action: 'toggleProxy', enable: true });
-      proxyEnabled = true;
     } catch (proxyError) {
-      console.error('Popup: Failed to enable proxy after server selection:', proxyError);
-
       await browser.storage.local.remove(['proxyHost', 'proxyPort']);
       const serverSelect = document.getElementById('server-select');
       if (serverSelect) serverSelect.value = '';
-
       throw new Error('Failed to enable proxy for selected server');
     }
 
     await refreshStatus();
-    if (proxyEnabled) {
-      const flagEmoji = getCountryFlag(server.country);
-      showMessage(`Selected server: ${flagEmoji} ${server.country || server.host}`, 'success');
-    }
+    const flagEmoji = getCountryFlag(server.country);
+    showMessage(`Selected server: ${flagEmoji} ${server.country || server.host}`, 'success');
   } catch (error) {
-    console.error('Popup: Server selection error:', error);
-
-    // Reset dropdown selection on error
     const serverSelect = document.getElementById('server-select');
     if (serverSelect) serverSelect.value = '';
-
-    let errorMessage = 'Failed to select server';
-    if (error.message && error.message.includes('timeout')) {
-      errorMessage = 'Server selection timed out';
-    } else if (error.message && error.message.includes('network')) {
-      errorMessage = 'Network error during server selection';
-    }
-
-    showMessage(errorMessage, 'error');
+    showMessage('Failed to select server', 'error');
   } finally {
     showLoading(false);
   }
@@ -413,109 +351,22 @@ async function handleDisconnect() {
       console.error('Popup: Failed to disable proxy during disconnect:', proxyError);
     }
     const serverSelect = document.getElementById('server-select');
-    if (serverSelect) {
-      serverSelect.value = '';
-    }
+    if (serverSelect) serverSelect.value = '';
     const disconnectBtn = document.getElementById('disconnect-btn');
-    if (disconnectBtn) {
-      disconnectBtn.style.display = 'none';
-    }
+    if (disconnectBtn) disconnectBtn.style.display = 'none';
 
     await refreshStatus();
-
     showMessage('Server disconnected', 'success');
   } catch (error) {
-    console.error('Popup: Disconnect error:', error);
-
-    let errorMessage = 'Failed to disconnect server';
-    if (error.message && error.message.includes('storage')) {
-      errorMessage = 'Failed to clear server settings';
-    }
-
-    showMessage(errorMessage, 'error');
+    showMessage('Failed to disconnect server', 'error');
   } finally {
     showLoading(false);
   }
 }
 
-
 function handleOpenOptions() {
   browser.runtime.openOptionsPage();
   window.close();
-}
-
-async function sendMessage(message) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Request timeout - no response from background script'));
-    }, 30000);
-
-    browser.runtime.sendMessage(message, (response) => {
-      clearTimeout(timeout);
-
-      if (browser.runtime.lastError) {
-        reject(browser.runtime.lastError);
-      } else {
-        resolve(response);
-      }
-    });
-  });
-}
-
-function showLoading(show) {
-  const loadingOverlay = document.getElementById('loading-overlay');
-  if (loadingOverlay) {
-    loadingOverlay.style.display = show ? 'flex' : 'none';
-
-    if (show) {
-      let cancelBtn = loadingOverlay.querySelector('.cancel-btn');
-      if (!cancelBtn) {
-        cancelBtn = document.createElement('a');
-        cancelBtn.className = 'cancel-btn';
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.href = '#';
-        cancelBtn.style.cssText = 'margin-top: 10px; color: #3498db; text-decoration: underline; cursor: pointer; font-size: 14px;';
-        cancelBtn.onclick = (e) => {
-          e.preventDefault();
-          showLoading(false);
-          showMessage('Operation cancelled', 'info');
-          location.reload();
-        };
-        loadingOverlay.appendChild(cancelBtn);
-      }
-    }
-  }
-
-  try {
-    document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
-  } catch (error) {
-    console.error('Popup: Error toggling button states:', error);
-  }
-}
-
-function showMessage(text, type = 'info') {
-  const container = document.getElementById('message-container');
-  const messageText = document.getElementById('message-text');
-
-  if (!container || !messageText) {
-    console.error('Popup: Message container elements not found');
-    return;
-  }
-
-  messageText.textContent = text;
-  container.className = `message ${type}`;
-  container.style.display = 'flex';
-
-  if (type === 'success') {
-    setTimeout(hideMessage, 3000);
-  }
-}
-
-function hideMessage() {
-  const container = document.getElementById('message-container');
-  if (container) {
-    container.style.display = 'none';
-  }
 }
 
 function formatRelativeTime(date) {
@@ -538,12 +389,3 @@ setInterval(() => {
     refreshStatus();
   }
 }, 30000);
-
-/**
- * Setup theme functionality
- */
-function setupTheme() {
-  // The theme manager is already initialized in theme.js
-  // Just setup the toggle button event listener
-  window.themeManager.setupToggleButton();
-}

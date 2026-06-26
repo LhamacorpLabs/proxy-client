@@ -187,7 +187,6 @@ class AuthService {
     }
   }
 
-
   async logout() {
     this.tokenCache = null;
     this.tokenExpiry = null;
@@ -198,8 +197,7 @@ class AuthService {
   getStatus() {
     return {
       isAuthenticated: this.isTokenValid(),
-      tokenExpiry: this.tokenExpiry,
-      hasCredentials: false
+      tokenExpiry: this.tokenExpiry
     };
   }
 }

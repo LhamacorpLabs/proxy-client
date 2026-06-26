@@ -1,6 +1,7 @@
 let isInitialized = false;
 let currentSettings = null;
 let proxyEnabled = false;
+let cachedUsername = null;
 
 let iconCache = {};
 
@@ -56,8 +57,6 @@ async function generateIconWithDot(dotColor) {
 async function updateStatusIcon() {
   try {
     const status = authService.getStatus();
-    const settings = await getSettings();
-    const hasCredentials = status.isAuthenticated; // Token-based authentication
     const isAuthenticated = status.isAuthenticated;
     const isConnected = proxyEnabled && isAuthenticated;
 
@@ -70,9 +69,6 @@ async function updateStatusIcon() {
     } else if (isAuthenticated && !proxyEnabled) {
       dotColor = '#f39c12';
       title = 'Lhamacorp Proxy Client - Disconnected';
-    } else if (!isAuthenticated && hasCredentials) {
-      dotColor = '#e74c3c';
-      title = 'Lhamacorp Proxy Client - Authentication Expired';
     } else {
       dotColor = null;
       title = 'Lhamacorp Proxy Client - Not Configured';
@@ -100,6 +96,8 @@ async function initialize() {
     currentSettings = await getSettings();
     proxyEnabled = currentSettings.autoConnect;
 
+    updateCachedUsername();
+
     setupProxyRequestHandler();
     browser.storage.onChanged.addListener(handleSettingsChange);
     setupContextMenu();
@@ -123,6 +121,20 @@ async function getSettings() {
   return { ...defaults, ...result };
 }
 
+function updateCachedUsername() {
+  try {
+    const token = authService.tokenCache;
+    if (token) {
+      const payload = authService.parseJWT(token);
+      if (payload && payload.sub) {
+        cachedUsername = payload.sub;
+        return;
+      }
+    }
+  } catch (error) {}
+  cachedUsername = 'user';
+}
+
 function setupProxyRequestHandler() {
   browser.proxy.onRequest.addListener(handleProxyRequest, { urls: ['<all_urls>'] });
   browser.proxy.onError.addListener((error) => {
@@ -135,11 +147,9 @@ async function handleProxyRequest(requestInfo) {
     return { type: 'direct' };
   }
 
-  const settings = await getSettings();
-
   try {
     const url = new URL(requestInfo.url);
-    if (['localhost', '127.0.0.1'].includes(url.hostname)) {
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
       return { type: 'direct' };
     }
   } catch (e) {}
@@ -154,31 +164,18 @@ async function handleProxyRequest(requestInfo) {
     return { type: 'direct' };
   }
 
-  // Extract username from JWT token for SOCKS authentication
-  let username = 'user'; // fallback
-  try {
-    const tokenPayload = authService.parseJWT(token);
-    if (tokenPayload && tokenPayload.sub) {
-      username = tokenPayload.sub;
-    }
-  } catch (error) {
-    console.log('ProxyAuth: Could not extract username from token, using fallback');
-  }
-
   return {
     type: 'socks',
-    host: settings.proxyHost,
-    port: parseInt(settings.proxyPort),
-    username: username,
+    host: currentSettings.proxyHost,
+    port: parseInt(currentSettings.proxyPort),
+    username: cachedUsername || 'user',
     password: token,
     proxyDNS: true
   };
 }
 
 async function configureProxy() {
-  const settings = await getSettings();
-
-  if (!settings.proxyHost || !settings.proxyPort) {
+  if (!currentSettings.proxyHost || !currentSettings.proxyPort) {
     console.error('ProxyAuth: Invalid proxy configuration');
     return;
   }
@@ -228,7 +225,8 @@ async function handleSettingsChange(changes, area) {
     await configureProxy();
   }
 
-  if ('username' in changes || 'password' in changes) {
+  if ('authToken' in changes) {
+    updateCachedUsername();
     await updateStatusIcon();
   }
 }
@@ -243,8 +241,7 @@ function setupContextMenu() {
 
     browser.contextMenus.onClicked.addListener(async (info) => {
       if (info.menuItemId === 'proxy-toggle') {
-        const settings = await getSettings();
-        const newAutoConnect = !settings.autoConnect;
+        const newAutoConnect = !currentSettings.autoConnect;
 
         await browser.storage.local.set({ autoConnect: newAutoConnect });
         await updateStatusIcon();
@@ -266,14 +263,13 @@ browser.runtime.onMessage.addListener(async (message) => {
   switch (message.action) {
     case 'getStatus':
       const status = authService.getStatus();
-      const settings = await getSettings();
-      status.hasCredentials = status.isAuthenticated; // Token-based authentication
       status.proxyConfigured = proxyEnabled;
       return Promise.resolve(status);
 
     case 'authenticate':
       try {
         await authService.authenticate(message.username, message.password, message.authServerUrl);
+        updateCachedUsername();
         await updateStatusIcon();
         return Promise.resolve({ success: true });
       } catch (error) {
@@ -284,6 +280,7 @@ browser.runtime.onMessage.addListener(async (message) => {
     case 'logout':
       try {
         await authService.logout();
+        cachedUsername = null;
         await updateStatusIcon();
         return Promise.resolve({ success: true });
       } catch (error) {
@@ -293,9 +290,10 @@ browser.runtime.onMessage.addListener(async (message) => {
 
     case 'toggleProxy':
       try {
-        const settings = await getSettings();
-        const newAutoConnect = !settings.autoConnect;
+        currentSettings = await getSettings();
+        const newAutoConnect = !currentSettings.autoConnect;
         await browser.storage.local.set({ autoConnect: newAutoConnect });
+        currentSettings.autoConnect = newAutoConnect;
 
         if (newAutoConnect) {
           await configureProxy();
@@ -322,6 +320,7 @@ browser.runtime.onMessage.addListener(async (message) => {
           proxyHost: message.host,
           proxyPort: message.port
         });
+        currentSettings = await getSettings();
         return Promise.resolve({ success: true });
       } catch (error) {
         return Promise.resolve({ success: false, error: error.message });
@@ -329,9 +328,7 @@ browser.runtime.onMessage.addListener(async (message) => {
 
     case 'testConnection':
       try {
-        const settings = await getSettings();
-
-        if (!settings.proxyHost || !settings.proxyPort) {
+        if (!currentSettings.proxyHost || !currentSettings.proxyPort) {
           throw new Error('Proxy host and port must be configured');
         }
 
@@ -341,8 +338,8 @@ browser.runtime.onMessage.addListener(async (message) => {
         }
 
         const msg = proxyEnabled
-          ? `Proxy is configured and ready: ${settings.proxyHost}:${settings.proxyPort}`
-          : `Proxy is ready but not enabled: ${settings.proxyHost}:${settings.proxyPort}`;
+          ? `Proxy is configured and ready: ${currentSettings.proxyHost}:${currentSettings.proxyPort}`
+          : `Proxy is ready but not enabled: ${currentSettings.proxyHost}:${currentSettings.proxyPort}`;
 
         return Promise.resolve({ success: true, message: msg });
       } catch (error) {
@@ -351,13 +348,8 @@ browser.runtime.onMessage.addListener(async (message) => {
 
     case 'disconnectProxy':
       try {
-        // Force disconnect proxy and clear configuration
         await clearProxy();
-        proxyEnabled = false;
-
-        // Also clear autoConnect to prevent automatic reconnection
         await browser.storage.local.set({ autoConnect: false });
-
         await updateStatusIcon();
 
         browser.notifications.create({
